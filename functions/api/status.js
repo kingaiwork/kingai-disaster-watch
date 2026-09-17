@@ -3,9 +3,22 @@ const JSON_HEADERS = {
   'cache-control': 'public, max-age=30, s-maxage=60',
   'x-content-type-options': 'nosniff'
 };
-const UA = 'KINGAI-Disaster-Watch/0.1 (https://hazard.kingai.work)';
+const UA = 'KINGAI-Disaster-Watch/0.2 (https://hazard.kingai.work)';
+const HOUR = 3600 * 1000;
 
 const clamp = (n, min=0, max=100) => Math.max(min, Math.min(max, Math.round(n)));
+const timestamp = (value) => {
+  const ms = Date.parse(value || '');
+  return Number.isFinite(ms) ? ms : null;
+};
+const ageSeconds = (value) => {
+  const ms = timestamp(value);
+  return ms == null ? null : Math.max(0, Math.round((Date.now() - ms) / 1000));
+};
+const isFresh = (value, hours) => {
+  const ms = timestamp(value);
+  return ms != null && ms <= Date.now() + 5 * 60 * 1000 && Date.now() - ms <= hours * HOUR;
+};
 
 async function fetchJson(url, extraHeaders={}) {
   const r = await fetch(url, {
@@ -57,19 +70,18 @@ function decodeXml(s='') {
 }
 
 function parseAtom(xml, center) {
-  const entries = [...xml.matchAll(/<entry\b[\s\S]*?<\/entry>/gi)].slice(0, 12).map(m => {
+  return [...xml.matchAll(/<entry\b[\s\S]*?<\/entry>/gi)].slice(0, 20).map(m => {
     const block = m[0];
     const title = decodeXml(textTag(block, 'title'));
     const updated = textTag(block, 'updated');
     const link = block.match(/<link\b[^>]*href=["']([^"']+)["']/i)?.[1] || '';
     const [level, score] = tsunamiLevel(title);
-    return { center, title, updated, link, level, score };
+    return { center, title, updated, ageSeconds: ageSeconds(updated), link, level, score, fresh24h: isFresh(updated, 24) };
   });
-  return entries;
 }
 
 async function earthquakes() {
-  const start = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const start = new Date(Date.now() - 24 * HOUR).toISOString();
   const boxes = [
     [24, 50, -125, -66],
     [50, 72, -180, -129],
@@ -90,13 +102,14 @@ async function earthquakes() {
       magnitude: Number(f.properties?.mag || 0),
       place: f.properties?.place || 'Unknown location',
       time: f.properties?.time || null,
+      ageSeconds: f.properties?.time ? Math.max(0, Math.round((Date.now() - Number(f.properties.time)) / 1000)) : null,
       url: f.properties?.url || '',
       lat, lng, depth
     });
   }
   events.sort((a,b) => (b.magnitude || 0) - (a.magnitude || 0));
   const largest = events[0]?.magnitude || 0;
-  return { score: eqScore(largest, events.length), detail: `${events.length} M2.5+ / 24h · largest M${largest.toFixed(1)}`, count: events.length, largest, events: events.slice(0, 250) };
+  return { score: eqScore(largest, events.length), detail: `${events.length} M2.5+ / 24h · largest M${largest.toFixed(1)}`, count: events.length, largest, windowHours: 24, events: events.slice(0, 250) };
 }
 
 async function tornadoes() {
@@ -129,6 +142,7 @@ async function volcanoes() {
   for (const notice of notices || []) for (const s of notice.noticeSections || []) {
     if (!s.vName || !Number.isFinite(Number(s.lat)) || !Number.isFinite(Number(s.lng))) continue;
     const key = s.vnum || `${s.vName}:${s.lat}:${s.lng}`;
+    const sentUtc = notice.sentUtc || '';
     const candidate = {
       name: s.vName,
       vnum: s.vnum || '',
@@ -137,14 +151,24 @@ async function volcanoes() {
       colorCode: s.colorCode || notice.obsColorCode || 'UNASSIGNED',
       synopsis: s.synopsis || '',
       url: s.vUrl || notice.noticeUrl || '',
-      sentUtc: notice.sentUtc || ''
+      sentUtc,
+      ageSeconds: ageSeconds(sentUtc)
     };
-    if (!byVolcano.has(key) || volcanoLevelScore(candidate.alertLevel) > volcanoLevelScore(byVolcano.get(key).alertLevel)) byVolcano.set(key, candidate);
+    const current = byVolcano.get(key);
+    const candidateTime = timestamp(candidate.sentUtc) ?? -Infinity;
+    const currentTime = timestamp(current?.sentUtc) ?? -Infinity;
+    if (!current || candidateTime > currentTime) byVolcano.set(key, candidate);
   }
   const volcanoes = [...byVolcano.values()].sort((a,b) => volcanoLevelScore(b.alertLevel) - volcanoLevelScore(a.alertLevel));
   const max = volcanoes.reduce((m,v) => Math.max(m, volcanoLevelScore(v.alertLevel)), 0);
   const elevated = volcanoes.filter(v => ['ADVISORY','WATCH','WARNING'].includes(String(v.alertLevel).toUpperCase())).length;
-  return { score: max, detail: `${elevated} elevated volcano status(es)`, elevated, volcanoes: volcanoes.slice(0, 120) };
+  return {
+    score: max,
+    detail: `${elevated} elevated volcano status(es) · latest notice per volcano`,
+    elevated,
+    selectionPolicy: 'latest notice per volcano; never historical maximum',
+    volcanoes: volcanoes.slice(0, 120)
+  };
 }
 
 async function tsunamis() {
@@ -154,10 +178,15 @@ async function tsunamis() {
   ];
   const docs = await Promise.all(feeds.map(async ([center,url]) => [center, await fetchText(url)]));
   const messages = docs.flatMap(([center,xml]) => parseAtom(xml, center));
-  messages.sort((a,b) => (b.score || 0) - (a.score || 0));
-  const activeCritical = messages.filter(m => ['WARNING','ADVISORY','WATCH'].includes(m.level));
+  messages.sort((a,b) => (timestamp(b.updated) ?? 0) - (timestamp(a.updated) ?? 0));
+  const activeCritical = messages.filter(m => m.fresh24h && ['WARNING','ADVISORY','WATCH'].includes(m.level));
   const score = activeCritical.reduce((m,x) => Math.max(m, x.score), 0);
-  return { score, detail: `${activeCritical.length} warning/watch/advisory message(s) in current feeds`, messages: messages.slice(0, 20) };
+  return {
+    score,
+    detail: `${activeCritical.length} fresh warning/watch/advisory message(s) in last 24h`,
+    freshnessWindowHours: 24,
+    messages: messages.slice(0, 20)
+  };
 }
 
 export async function onRequestGet() {
@@ -185,9 +214,10 @@ export async function onRequestGet() {
     generatedAt,
     index: {
       score: overall,
-      model: 'EMHSI-v1',
+      model: 'EMHSI-v1.1',
       interpretation: 'Normalized current scenario severity; not an apocalypse probability',
-      elevatedHazards: elevatedCount
+      elevatedHazards: elevatedCount,
+      caveat: 'Official warnings and evacuation instructions always take precedence.'
     },
     ...data,
     sources
