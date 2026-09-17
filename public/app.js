@@ -48,6 +48,18 @@ function plot(data) {
       .bindPopup(popup(volcano.name, [`Alert: ${volcano.alertLevel || 'unknown'}`, volcano.synopsis || 'USGS notice']));
   }
 
+  for (const outlook of data.tornado?.outlook?.tornadoPolygons || []) {
+    if (!outlook.geometry) continue;
+    try {
+      L.geoJSON(outlook.geometry, { style: { weight: 2, fillOpacity: .10, dashArray: '6 5' } })
+        .addTo(hazardLayer)
+        .bindPopup(popup('SPC Day 1 tornado probability', [
+          `${outlook.probabilityPct || 0}% within 25 miles of a point`,
+          outlook.valid ? `Valid: ${outlook.valid}` : 'Official NOAA/NWS SPC outlook'
+        ]));
+    } catch (_) {}
+  }
+
   for (const alert of data.tornado?.alerts || []) {
     if (!alert.geometry) continue;
     try {
@@ -60,6 +72,17 @@ function plot(data) {
 
 function renderEvents(data) {
   const rows = [];
+
+  const spc = data.tornado?.outlook;
+  if (spc?.ok && Number(spc.maxTornadoProbabilityPct) > 0) {
+    rows.push({
+      rank: 40 + Number(spc.maxTornadoProbabilityPct),
+      type: 'TORNADO OUTLOOK',
+      severity: `${spc.maxTornadoProbabilityPct}% DAY 1`,
+      title: 'SPC Day 1 tornado probability',
+      text: `${spc.categorical?.label || 'Convective outlook'} · probability within 25 miles of a point during the valid period`
+    });
+  }
 
   for (const a of data.tornado?.alerts || []) rows.push({
     rank: a.event === 'Tornado Warning' ? 100 : 70,
