@@ -28,6 +28,11 @@
       <div class="hero-copy">
         <h1>One national view of four high-impact hazards.</h1>
         <p>Official observations and warnings are normalized into a transparent severity index. This is a situational-awareness system, <strong>not a literal probability that an apocalypse will happen</strong>.</p>
+        <div class="quality-strip" aria-label="Data quality">
+          <div><span class="quality-label">Coverage</span><strong id="coverageValue">--</strong></div>
+          <div><span class="quality-label">Source confidence</span><strong id="confidenceValue">--</strong></div>
+          <div><span class="quality-label">Model</span><strong id="modelValue">--</strong></div>
+        </div>
         <div id="sourceState" class="source-state"></div>
       </div>
     </section>
@@ -58,11 +63,11 @@
       </div>
       <div class="method-grid">
         <p><strong>Earthquakes:</strong> recent M2.5+ events across the contiguous U.S., Alaska and Hawaii, with severity driven mainly by the largest recent magnitude.</p>
-        <p><strong>Tsunamis:</strong> NOAA/NWS warning-center message severity. Warning, advisory and watch levels dominate the score.</p>
-        <p><strong>Volcanoes:</strong> latest USGS observatory notices and alert levels, with coordinates plotted where provided.</p>
+        <p><strong>Tsunamis:</strong> NOAA/NWS warning-center messages. Warning, advisory and watch levels affect the live score only while fresh inside the 24-hour safety window.</p>
+        <p><strong>Volcanoes:</strong> the latest USGS observatory notice for each volcano, never the historical maximum alert from older notices.</p>
         <p><strong>Tornadoes:</strong> active NWS Tornado Warnings and Watches. Later versions add SPC probabilistic outlook layers.</p>
       </div>
-      <p class="disclaimer">For life-safety decisions, follow USGS, NOAA/NWS, local emergency management and evacuation instructions. KINGAI scores summarize sources; they do not replace official alerts.</p>
+      <p class="disclaimer">Coverage and source confidence describe authoritative-feed availability, not the probability that a disaster will occur. For life-safety decisions, follow USGS, NOAA/NWS, local emergency management and evacuation instructions.</p>
     </section>
   </main>
 
