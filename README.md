@@ -1,6 +1,6 @@
 # KINGAI Disaster Watch
 
-Public multi-hazard situational-awareness website for the United States, covering earthquakes, tsunamis, volcanoes and tornadoes.
+Public multi-hazard situational-awareness website for the United States and covered U.S. territories, monitoring earthquakes, tsunamis, volcanoes and tornadoes.
 
 ## Production target
 
@@ -17,10 +17,10 @@ The public `Extreme Multi-Hazard Scenario Index (EMHSI)` is a 0–100 situationa
 
 ## Authoritative upstream sources
 
-- Earthquake: USGS Earthquake Hazards Program real-time GeoJSON feeds.
-- Tsunami: NOAA / U.S. Tsunami Warning System ATOM/CAP products.
-- Volcano: USGS Volcano Hazards Program HANS API.
-- Tornado: NOAA/NWS CAP/JSON alert API. A future release will add NOAA Storm Prediction Center convective outlook layers.
+- Earthquake: USGS Earthquake Hazards Program FDSN/GeoJSON data for the contiguous U.S., Alaska, Hawaii, Puerto Rico/U.S. Virgin Islands, Guam/Northern Mariana Islands and American Samoa.
+- Tsunami: NOAA / U.S. Tsunami Warning System NTWC/PTWC ATOM products, with a 24-hour freshness gate for warning/watch/advisory scoring.
+- Volcano: USGS Volcano Hazards Program HANS API, selecting the latest notice per volcano rather than an older maximum alert.
+- Tornado: NOAA/NWS active warning/watch API plus the official NOAA/NWS Storm Prediction Center Day 1 probabilistic tornado outlook. SPC probability is displayed as forecast evidence and does not yet change the EMHSI tornado score.
 
 ## Architecture
 
@@ -29,20 +29,22 @@ USGS / NOAA / NWS
       │
       ▼
 Cloudflare Pages Functions
-  /api/earthquakes
-  /api/tornadoes
-  /api/tsunami
-  /api/volcanoes
   /api/status
       │
-      ├── cache + source timestamps
-      ├── transparent v1 scoring
+      ├── four authoritative hazard families
+      ├── SPC Day 1 official tornado probability
+      ├── source latency + evidence age
+      ├── coverage / source-confidence telemetry
+      └── transparent versioned EMHSI scoring
       ▼
 Browser dashboard + national map
       │
-      ▼
-Optional private intelligence API
-kingai-hazard-core (future production model)
+      └──────────────► VPS 5-minute sanitized history snapshots
+                        + trend queries
+                        + stateful anomaly detection
+                               │
+                               ▼
+                    kingai-hazard-core (PRIVATE)
 ```
 
 ## Local development
