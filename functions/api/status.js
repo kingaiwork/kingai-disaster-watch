@@ -88,9 +88,13 @@ function parseAtom(xml, center) {
 async function earthquakes() {
   const start = new Date(Date.now() - 24 * HOUR).toISOString();
   const boxes = [
-    [24, 50, -125, -66],
-    [50, 72, -180, -129],
-    [18, 23, -161, -154]
+    [24, 50, -125, -66],       // contiguous U.S.
+    [50, 72, -180, -129],      // Alaska, western hemisphere
+    [50, 56, 170, 180],        // far-west Aleutians
+    [18, 23, -161, -154],      // Hawaii
+    [17, 19, -68, -64],        // Puerto Rico + U.S. Virgin Islands
+    [13, 21, 143, 147],        // Guam + Northern Mariana Islands
+    [-15, -11, -172, -167]     // American Samoa
   ];
   const urls = boxes.map(([minlat,maxlat,minlon,maxlon]) =>
     `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${encodeURIComponent(start)}&minmagnitude=2.5&minlatitude=${minlat}&maxlatitude=${maxlat}&minlongitude=${minlon}&maxlongitude=${maxlon}&orderby=time`
@@ -126,11 +130,78 @@ async function earthquakes() {
   };
 }
 
+async function spcDay1Outlook() {
+  const base = 'https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/FeatureServer';
+  const fields = 'dn,valid,expire,issue,label,label2,idp_source,idp_filedate,idp_ingestdate';
+  const query = 'where=1%3D1&outFields=' + encodeURIComponent(fields) + '&returnGeometry=true&f=geojson';
+  const categoryLabels = { 2: 'Thunderstorm', 3: 'Marginal', 4: 'Slight', 5: 'Enhanced', 6: 'Moderate', 8: 'High' };
+
+  const arcAgeSeconds = (value) => {
+    const ms = typeof value === 'number' ? value : timestamp(value);
+    return Number.isFinite(ms) ? Math.max(0, Math.round((Date.now() - ms) / 1000)) : null;
+  };
+
+  try {
+    const [categorical, tornado] = await Promise.all([
+      fetchJson(`${base}/1/query?${query}`),
+      fetchJson(`${base}/3/query?${query}`)
+    ]);
+    const catFeatures = Array.isArray(categorical?.features) ? categorical.features : [];
+    const tornadoFeatures = Array.isArray(tornado?.features) ? tornado.features : [];
+    const topCategory = catFeatures.reduce((best, feature) => {
+      const value = Number(feature?.properties?.dn || 0);
+      return !best || value > Number(best?.properties?.dn || 0) ? feature : best;
+    }, null);
+    const maxTornadoProbabilityPct = tornadoFeatures.reduce(
+      (max, feature) => Math.max(max, Number(feature?.properties?.dn || 0)), 0
+    );
+    const metadataFeature = topCategory || tornadoFeatures[0] || null;
+    const metadata = metadataFeature?.properties || {};
+    const evidenceAgeSeconds = minFinite(
+      [...catFeatures, ...tornadoFeatures].map(feature => arcAgeSeconds(feature?.properties?.idp_filedate))
+    );
+
+    return {
+      ok: true,
+      source: 'NOAA/NWS Storm Prediction Center',
+      layer: 'Day 1 Probabilistic Tornado Outlook',
+      semantics: 'Probability of a tornado within 25 miles of a point during the Day 1 valid period.',
+      maxTornadoProbabilityPct,
+      categorical: {
+        value: Number(topCategory?.properties?.dn || 0),
+        label: topCategory?.properties?.label || categoryLabels[Number(topCategory?.properties?.dn || 0)] || 'None'
+      },
+      issue: metadata.issue || '',
+      valid: metadata.valid || '',
+      expire: metadata.expire || '',
+      evidenceAgeSeconds,
+      tornadoPolygons: tornadoFeatures.map(feature => ({
+        probabilityPct: Number(feature?.properties?.dn || 0),
+        valid: feature?.properties?.valid || '',
+        expire: feature?.properties?.expire || '',
+        issue: feature?.properties?.issue || '',
+        geometry: feature?.geometry || null
+      })).filter(feature => feature.geometry)
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      source: 'NOAA/NWS Storm Prediction Center',
+      maxTornadoProbabilityPct: null,
+      categorical: { value: null, label: 'Unavailable' },
+      evidenceAgeSeconds: null,
+      tornadoPolygons: [],
+      error: String(error?.message || error)
+    };
+  }
+}
+
 async function tornadoes() {
   const base = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert';
-  const [warnings, watches] = await Promise.all([
+  const [warnings, watches, outlook] = await Promise.all([
     fetchJson(`${base}&event=${encodeURIComponent('Tornado Warning')}`),
-    fetchJson(`${base}&event=${encodeURIComponent('Tornado Watch')}`)
+    fetchJson(`${base}&event=${encodeURIComponent('Tornado Watch')}`),
+    spcDay1Outlook()
   ]);
   const features = [...(warnings.features || []), ...(watches.features || [])];
   const alerts = features.map(f => ({
@@ -148,12 +219,17 @@ async function tornadoes() {
   }));
   const warningCount = alerts.filter(a => a.event === 'Tornado Warning').length;
   const watchCount = alerts.filter(a => a.event === 'Tornado Watch').length;
+  const spcText = outlook.ok
+    ? `SPC D1 tornado max ${outlook.maxTornadoProbabilityPct}% · ${outlook.categorical.label}`
+    : 'SPC D1 outlook unavailable';
   return {
     score: tornadoScore(warningCount, watchCount),
-    detail: `${warningCount} warning(s) · ${watchCount} watch(es)`,
+    detail: `${warningCount} warning(s) · ${watchCount} watch(es) · ${spcText}`,
     warningCount,
     watchCount,
-    evidenceAgeSeconds: minFinite(alerts.map(a => a.ageSeconds)),
+    evidenceAgeSeconds: minFinite([...alerts.map(a => a.ageSeconds), outlook.evidenceAgeSeconds]),
+    scoringPolicy: 'EMHSI tornado score remains based on active NWS watches/warnings; SPC probability is displayed as official forecast evidence pending calibration.',
+    outlook,
     alerts
   };
 }
@@ -255,8 +331,9 @@ export async function onRequestGet() {
     generatedAt,
     index: {
       score: overall,
-      model: 'EMHSI-v1.2',
+      model: 'EMHSI-v1.3',
       interpretation: 'Normalized current scenario severity; not an apocalypse probability',
+      scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
       elevatedHazards: elevatedCount,
       coverage: Number(coverage.toFixed(3)),
       sourceConfidence,
