@@ -1,3 +1,5 @@
+import { parseAtom } from './lib/tsunami.js';
+
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'public, max-age=30, s-maxage=60',
@@ -54,35 +56,6 @@ function tornadoScore(warnings, watches) {
 function volcanoLevelScore(level) {
   const x = String(level || '').toUpperCase();
   return ({ NORMAL: 5, ADVISORY: 35, WATCH: 62, WARNING: 92 })[x] ?? 10;
-}
-
-function tsunamiLevel(title='') {
-  const t = title.toUpperCase();
-  if (t.includes('WARNING')) return ['WARNING', 96];
-  if (t.includes('ADVISORY')) return ['ADVISORY', 72];
-  if (t.includes('WATCH')) return ['WATCH', 55];
-  if (t.includes('INFORMATION')) return ['INFORMATION', 12];
-  return ['MESSAGE', 8];
-}
-
-function textTag(block, tag) {
-  const m = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i'));
-  return m ? m[1].replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, '').trim() : '';
-}
-
-function decodeXml(s='') {
-  return s.replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&quot;','"').replaceAll('&#39;',"'");
-}
-
-function parseAtom(xml, center) {
-  return [...xml.matchAll(/<entry\b[\s\S]*?<\/entry>/gi)].slice(0, 20).map(m => {
-    const block = m[0];
-    const title = decodeXml(textTag(block, 'title'));
-    const updated = textTag(block, 'updated');
-    const link = block.match(/<link\b[^>]*href=["']([^"']+)["']/i)?.[1] || '';
-    const [level, score] = tsunamiLevel(title);
-    return { center, title, updated, ageSeconds: ageSeconds(updated), link, level, score, fresh24h: isFresh(updated, 24) };
-  });
 }
 
 async function earthquakes() {
@@ -169,7 +142,7 @@ async function spcDay1Outlook() {
       maxTornadoProbabilityPct,
       categorical: {
         value: Number(topCategory?.properties?.dn || 0),
-        label: topCategory?.properties?.label || categoryLabels[Number(topCategory?.properties?.dn || 0)] || 'None'
+        label: categoryLabels[Number(topCategory?.properties?.dn || 0)] || topCategory?.properties?.label || 'None'
       },
       issue: metadata.issue || '',
       valid: metadata.valid || '',
@@ -331,7 +304,7 @@ export async function onRequestGet() {
     generatedAt,
     index: {
       score: overall,
-      model: 'EMHSI-v1.3',
+      model: 'EMHSI-v1.3.1',
       interpretation: 'Normalized current scenario severity; not an apocalypse probability',
       scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
       elevatedHazards: elevatedCount,
