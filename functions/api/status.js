@@ -3,8 +3,9 @@ const JSON_HEADERS = {
   'cache-control': 'public, max-age=30, s-maxage=60',
   'x-content-type-options': 'nosniff'
 };
-const UA = 'KINGAI-Disaster-Watch/0.2 (https://hazard.kingai.work)';
+const UA = 'KINGAI-Disaster-Watch/0.3 (https://hazard.kingai.work)';
 const HOUR = 3600 * 1000;
+const EXPECTED_HAZARDS = ['earthquake', 'tsunami', 'volcano', 'tornado'];
 
 const clamp = (n, min=0, max=100) => Math.max(min, Math.min(max, Math.round(n)));
 const timestamp = (value) => {
@@ -18,6 +19,10 @@ const ageSeconds = (value) => {
 const isFresh = (value, hours) => {
   const ms = timestamp(value);
   return ms != null && ms <= Date.now() + 5 * 60 * 1000 && Date.now() - ms <= hours * HOUR;
+};
+const minFinite = (values) => {
+  const xs = values.filter(Number.isFinite);
+  return xs.length ? Math.min(...xs) : null;
 };
 
 async function fetchJson(url, extraHeaders={}) {
@@ -109,7 +114,16 @@ async function earthquakes() {
   }
   events.sort((a,b) => (b.magnitude || 0) - (a.magnitude || 0));
   const largest = events[0]?.magnitude || 0;
-  return { score: eqScore(largest, events.length), detail: `${events.length} M2.5+ / 24h · largest M${largest.toFixed(1)}`, count: events.length, largest, windowHours: 24, events: events.slice(0, 250) };
+  const newestEventAgeSeconds = minFinite(events.map(e => e.ageSeconds));
+  return {
+    score: eqScore(largest, events.length),
+    detail: `${events.length} M2.5+ / 24h · largest M${largest.toFixed(1)}`,
+    count: events.length,
+    largest,
+    windowHours: 24,
+    evidenceAgeSeconds: newestEventAgeSeconds,
+    events: events.slice(0, 250)
+  };
 }
 
 async function tornadoes() {
@@ -129,11 +143,19 @@ async function tornadoes() {
     areaDesc: f.properties?.areaDesc || '',
     sent: f.properties?.sent || '',
     expires: f.properties?.expires || '',
+    ageSeconds: ageSeconds(f.properties?.sent || ''),
     geometry: f.geometry || null
   }));
   const warningCount = alerts.filter(a => a.event === 'Tornado Warning').length;
   const watchCount = alerts.filter(a => a.event === 'Tornado Watch').length;
-  return { score: tornadoScore(warningCount, watchCount), detail: `${warningCount} warning(s) · ${watchCount} watch(es)`, warningCount, watchCount, alerts };
+  return {
+    score: tornadoScore(warningCount, watchCount),
+    detail: `${warningCount} warning(s) · ${watchCount} watch(es)`,
+    warningCount,
+    watchCount,
+    evidenceAgeSeconds: minFinite(alerts.map(a => a.ageSeconds)),
+    alerts
+  };
 }
 
 async function volcanoes() {
@@ -166,6 +188,7 @@ async function volcanoes() {
     score: max,
     detail: `${elevated} elevated volcano status(es) · latest notice per volcano`,
     elevated,
+    evidenceAgeSeconds: minFinite(volcanoes.map(v => v.ageSeconds)),
     selectionPolicy: 'latest notice per volcano; never historical maximum',
     volcanoes: volcanoes.slice(0, 120)
   };
@@ -185,6 +208,7 @@ async function tsunamis() {
     score,
     detail: `${activeCritical.length} fresh warning/watch/advisory message(s) in last 24h`,
     freshnessWindowHours: 24,
+    evidenceAgeSeconds: minFinite(messages.map(m => m.ageSeconds)),
     messages: messages.slice(0, 20)
   };
 }
@@ -196,28 +220,50 @@ export async function onRequestGet() {
   const sources = {};
 
   await Promise.all(Object.entries(tasks).map(async ([name, fn]) => {
+    const started = Date.now();
     try {
       data[name] = await fn();
-      sources[name] = { ok: true, checkedAt: generatedAt };
+      sources[name] = {
+        ok: true,
+        checkedAt: generatedAt,
+        latencyMs: Date.now() - started,
+        evidenceAgeSeconds: Number.isFinite(data[name]?.evidenceAgeSeconds) ? data[name].evidenceAgeSeconds : null
+      };
     } catch (error) {
       data[name] = { score: null, detail: 'Source unavailable', error: String(error?.message || error) };
-      sources[name] = { ok: false, checkedAt: generatedAt, error: String(error?.message || error) };
+      sources[name] = {
+        ok: false,
+        checkedAt: generatedAt,
+        latencyMs: Date.now() - started,
+        evidenceAgeSeconds: null,
+        error: String(error?.message || error)
+      };
     }
   }));
 
-  const availableScores = Object.values(data).map(v => v.score).filter(Number.isFinite);
+  const available = EXPECTED_HAZARDS.filter(name => Number.isFinite(data[name]?.score) && sources[name]?.ok);
+  const unknownHazards = EXPECTED_HAZARDS.filter(name => !available.includes(name));
+  const availableScores = available.map(name => data[name].score);
   const base = availableScores.length ? Math.max(...availableScores) : null;
   const elevatedCount = availableScores.filter(s => s >= 50).length;
   const overall = base == null ? null : clamp(base + Math.max(0, elevatedCount - 1) * 5);
+  const coverage = available.length / EXPECTED_HAZARDS.length;
+  const sourceConfidence = Number(coverage.toFixed(3));
+  const quality = coverage === 1 ? 'complete' : coverage >= 0.75 ? 'partial' : 'degraded';
 
   return new Response(JSON.stringify({
     generatedAt,
     index: {
       score: overall,
-      model: 'EMHSI-v1.1',
+      model: 'EMHSI-v1.2',
       interpretation: 'Normalized current scenario severity; not an apocalypse probability',
       elevatedHazards: elevatedCount,
-      caveat: 'Official warnings and evacuation instructions always take precedence.'
+      coverage: Number(coverage.toFixed(3)),
+      sourceConfidence,
+      quality,
+      availableHazards: available,
+      unknownHazards,
+      caveat: 'Source confidence describes authoritative-feed coverage, not the probability that a disaster will occur. Official warnings and evacuation instructions always take precedence.'
     },
     ...data,
     sources
