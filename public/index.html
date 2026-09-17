@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="KINGAI Disaster Watch: U.S. earthquake, tsunami, volcano and tornado situational intelligence." />
+  <title>KINGAI Disaster Watch</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">KINGAI <span>DISASTER WATCH</span></div>
+      <div class="subtitle">United States multi-hazard situational intelligence</div>
+    </div>
+    <div class="live"><span class="pulse"></span><span id="freshness">Loading live sources…</span></div>
+  </header>
+
+  <main>
+    <section class="hero panel">
+      <div>
+        <div class="eyebrow">EXTREME MULTI-HAZARD SCENARIO INDEX</div>
+        <div class="score-row"><span id="overallScore" class="score">--</span><span class="score-max">/100</span></div>
+        <div id="overallLabel" class="risk-label">Calculating…</div>
+      </div>
+      <div class="hero-copy">
+        <h1>One national view of four high-impact hazards.</h1>
+        <p>Official observations and warnings are normalized into a transparent severity index. This is a situational-awareness system, <strong>not a literal probability that an apocalypse will happen</strong>.</p>
+        <div id="sourceState" class="source-state"></div>
+      </div>
+    </section>
+
+    <section class="cards" aria-label="Hazard status">
+      <article class="hazard-card"><div class="icon">EQ</div><div><div class="card-name">Earthquake</div><div id="eqScore" class="card-score">--</div><div id="eqDetail" class="card-detail">USGS feed</div></div></article>
+      <article class="hazard-card"><div class="icon">TS</div><div><div class="card-name">Tsunami</div><div id="tsScore" class="card-score">--</div><div id="tsDetail" class="card-detail">NOAA warning centers</div></div></article>
+      <article class="hazard-card"><div class="icon">VO</div><div><div class="card-name">Volcano</div><div id="voScore" class="card-score">--</div><div id="voDetail" class="card-detail">USGS HANS</div></div></article>
+      <article class="hazard-card"><div class="icon">TO</div><div><div class="card-name">Tornado</div><div id="toScore" class="card-score">--</div><div id="toDetail" class="card-detail">NWS active alerts</div></div></article>
+    </section>
+
+    <section class="grid">
+      <article class="panel map-panel">
+        <div class="section-head"><div><div class="eyebrow">LIVE NATIONAL MAP</div><h2>Current hazard signals</h2></div><div class="legend">● earthquakes &nbsp; ◆ volcanoes &nbsp; shaded tornado alerts</div></div>
+        <div id="map" role="img" aria-label="Map of current U.S. hazard signals"></div>
+      </article>
+      <aside class="panel events-panel">
+        <div class="eyebrow">HIGHEST-PRIORITY SIGNALS</div>
+        <h2>What needs attention</h2>
+        <div id="events" class="events"><div class="loading">Waiting for official feeds…</div></div>
+      </aside>
+    </section>
+
+    <section class="panel methodology">
+      <div>
+        <div class="eyebrow">HOW TO READ THIS</div>
+        <h2>Monitoring + official warnings + transparent scoring</h2>
+      </div>
+      <div class="method-grid">
+        <p><strong>Earthquakes:</strong> recent M2.5+ events across the contiguous U.S., Alaska and Hawaii, with severity driven mainly by the largest recent magnitude.</p>
+        <p><strong>Tsunamis:</strong> NOAA/NWS warning-center message severity. Warning, advisory and watch levels dominate the score.</p>
+        <p><strong>Volcanoes:</strong> latest USGS observatory notices and alert levels, with coordinates plotted where provided.</p>
+        <p><strong>Tornadoes:</strong> active NWS Tornado Warnings and Watches. Later versions add SPC probabilistic outlook layers.</p>
+      </div>
+      <p class="disclaimer">For life-safety decisions, follow USGS, NOAA/NWS, local emergency management and evacuation instructions. KINGAI scores summarize sources; they do not replace official alerts.</p>
+    </section>
+  </main>
+
+  <footer>© 2026 KINGAI · hazard.kingai.work · Built for resilience, not sensationalism.</footer>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/app.js" defer></script>
+</body>
+</html>
