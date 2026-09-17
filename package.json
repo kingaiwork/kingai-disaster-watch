@@ -1,0 +1,12 @@
+{
+  "name": "kingai-disaster-watch",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public --project-name=kingai-disaster-watch"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
