@@ -2,8 +2,10 @@
   "name": "kingai-disaster-watch",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public",
+    "test": "node tests/tsunami_parser.test.mjs",
     "deploy": "wrangler pages deploy public --project-name=kingai-disaster-watch"
   },
   "devDependencies": {
