@@ -1,25 +1,53 @@
 const ASSETS = {
   earth: {
-    url: 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA18033.jpg',
-    source: 'NASA / Suomi NPP VIIRS'
+    urls: [
+      'https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=2048&h=2048&fit=clip&crop=faces%2Cfocalpoint',
+      'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA18033.jpg'
+    ],
+    source: 'NASA / JPL / Suomi NPP VIIRS'
   },
   earthquake: {
-    url: 'https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/cpnm23.jpg?itok=S_ZoCjyD',
+    urls: [
+      'https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/cpnm23.jpg?itok=S_ZoCjyD'
+    ],
     source: 'USGS'
   },
   tsunami: {
-    url: 'https://www.noaa.gov/sites/default/files/styles/square_width_856px_webp/public/legacy/image/2021/Mar/PHOTO-%20Ludington%20meteotsunami%20wave%20over%20breakwaters-04132018-DebbieMaglothin-1500x1000%20.JPG.webp?itok=6G9EPRBH',
+    urls: [
+      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/legacy/image/2019/Jun/PHOTO-iStock-145236147-Tsunami%20hazard%20zone-1125x575-Landscape.jpg',
+      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/legacy/image/2019/Jun/tsunami_model.png'
+    ],
     source: 'NOAA'
   },
   volcano: {
-    url: 'https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/IMG_7351.JPG?itok=kLQkMYWQ',
+    urls: [
+      'https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/IMG_7351.JPG?itok=kLQkMYWQ'
+    ],
     source: 'USGS'
   },
   tornado: {
-    url: 'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275px_webp/public/2024-07/pl23_con00010.jpg.webp?h=dc7fd145&itok=aKbdccAQ',
+    urls: [
+      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/2024-07/pl23_con00010.jpg'
+    ],
     source: 'NOAA'
   }
 };
+
+async function fetchFirst(urls) {
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'KINGAI-Disaster-Watch/1.0',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+        }
+      });
+      const type = response.headers.get('Content-Type') || '';
+      if (response.ok && type.toLowerCase().startsWith('image/')) return response;
+    } catch (_) {}
+  }
+  return null;
+}
 
 export async function onRequest(context) {
   const key = String(context.params.asset || '').toLowerCase();
@@ -31,13 +59,8 @@ export async function onRequest(context) {
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
 
-  const upstream = await fetch(asset.url, {
-    headers: {
-      'User-Agent': 'KINGAI-Disaster-Watch/1.0',
-      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-    }
-  });
-  if (!upstream.ok) {
+  const upstream = await fetchFirst(asset.urls);
+  if (!upstream) {
     return new Response('Asset upstream unavailable', {
       status: 502,
       headers: { 'Cache-Control': 'no-store' }
