@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://assets.science.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://d9-wret.s3.us-west-2.amazonaws.com" crossorigin />
   <link rel="preconnect" href="https://www.noaa.gov" crossorigin />
-  <link rel="preload" as="image" href="/media/earth" fetchpriority="high" />
+  <link rel="preload" as="image" href="/media/earth?v=2" fetchpriority="high" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
@@ -59,7 +59,7 @@
           <picture class="earth-picture">
             <source media="(max-width: 760px)" srcset="https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=1200&h=1200&fit=crop&crop=faces%2Cfocalpoint" />
             <img class="earth-photo" fetchpriority="high"
-              src="/media/earth"
+              src="/media/earth?v=2"
               alt="NASA Blue Marble view of North America" />
           </picture>
           <div class="earth-atmosphere"></div>
@@ -123,22 +123,22 @@
     </section>
 
     <section class="hazard-grid" id="hazards" aria-label="Hazard cards">
-      <article class="hazard-card eq"><img class="hazard-photo" loading="lazy" alt="" src="/media/earthquake" />
+      <article class="hazard-card eq"><img class="hazard-photo" loading="lazy" alt="" src="/media/earthquake?v=2" />
         <div class="hazard-icon">∿</div>
         <div class="hazard-main"><h2>Earthquake</h2><div class="hazard-score"><strong id="eqScore">--</strong><span>/100</span></div><b id="eqBand">--</b><p id="eqDetail">Loading USGS feed…</p></div>
         <div class="hazard-side"><div id="eqSpark" class="hazard-spark"></div><small id="eqMeta">--</small></div>
       </article>
-      <article class="hazard-card ts"><img class="hazard-photo" loading="lazy" alt="" src="/media/tsunami" />
+      <article class="hazard-card ts"><img class="hazard-photo" loading="lazy" alt="" src="/media/tsunami?v=2" />
         <div class="hazard-icon">◒</div>
         <div class="hazard-main"><h2>Tsunami</h2><div class="hazard-score"><strong id="tsScore">--</strong><span>/100</span></div><b id="tsBand">--</b><p id="tsDetail">Loading NOAA messages…</p></div>
         <div class="hazard-side"><div id="tsSpark" class="hazard-spark"></div><small id="tsMeta">--</small></div>
       </article>
-      <article class="hazard-card vo"><img class="hazard-photo" loading="lazy" alt="" src="/media/volcano" />
+      <article class="hazard-card vo"><img class="hazard-photo" loading="lazy" alt="" src="/media/volcano?v=2" />
         <div class="hazard-icon">△</div>
         <div class="hazard-main"><h2>Volcano</h2><div class="hazard-score"><strong id="voScore">--</strong><span>/100</span></div><b id="voBand">--</b><p id="voDetail">Loading USGS notices…</p></div>
         <div class="hazard-side"><div id="voSpark" class="hazard-spark"></div><small id="voMeta">--</small></div>
       </article>
-      <article class="hazard-card to"><img class="hazard-photo" loading="lazy" alt="" src="/media/tornado" />
+      <article class="hazard-card to"><img class="hazard-photo" loading="lazy" alt="" src="/media/tornado?v=2" />
         <div class="hazard-icon">▽</div>
         <div class="hazard-main"><h2>Tornado</h2><div class="hazard-score"><strong id="toScore">--</strong><span>/100</span></div><b id="toBand">--</b><p id="toDetail">Loading NWS + SPC…</p></div>
         <div class="hazard-side"><div id="toSpark" class="hazard-spark"></div><small id="toMeta">--</small></div>
