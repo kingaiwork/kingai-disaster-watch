@@ -422,3 +422,76 @@ footer{padding-top:14px}
 .leaflet-baseLabels-pane{
   filter:contrast(1.12) saturate(.92);
 }
+
+
+/* v4 screenshot-driven corrections */
+.hero-line{display:inline-flex;align-items:baseline;gap:.16em;white-space:nowrap}
+.hero h1 .gradient-text{
+  display:inline-block;white-space:nowrap;
+  background:linear-gradient(90deg,#ef5d7b 0%,#d852c8 58%,#8c5dd9 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero h1>span:not(.hero-line){background:none;color:inherit}
+.earth-stage{
+  width:min(760px,66vw);
+  top:-118px;
+  right:-1%;
+  background:#101f34;
+}
+.earth-picture{background:#101f34}
+.earth-photo{
+  object-fit:cover;
+  object-position:center 48%;
+  filter:saturate(1.03) contrast(1.06) brightness(1.08);
+}
+.earth-atmosphere{
+  background:radial-gradient(circle at 34% 24%,rgba(255,255,255,.10),transparent 30%);
+  box-shadow:
+    inset -64px -40px 88px rgba(39,31,57,.20),
+    inset 28px 12px 48px rgba(255,235,193,.18),
+    0 0 0 2px rgba(255,255,255,.64),
+    0 0 36px rgba(235,109,168,.23),
+    0 0 86px rgba(246,169,115,.18);
+}
+.hazard-card:before{
+  background:linear-gradient(90deg,
+    rgba(255,255,255,.985) 0%,
+    rgba(255,255,255,.94) 38%,
+    rgba(255,255,255,.68) 58%,
+    rgba(255,255,255,.18) 82%,
+    rgba(255,255,255,.02) 100%);
+}
+.hazard-photo{
+  width:52%;
+  opacity:.82;
+  filter:saturate(1.05) contrast(1.04) brightness(1.02);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.16) 8%,#000 45%);
+  mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.16) 8%,#000 45%);
+}
+.hazard-side{background:rgba(255,255,255,.68)}
+#map{
+  background:#efe9df;
+  border-color:#dfd3cb;
+}
+.leaflet-tile-pane{
+  filter:none!important;
+  opacity:1!important;
+}
+.leaflet-overlay-pane svg{overflow:visible}
+.map-key{
+  background:rgba(255,250,246,.94);
+  box-shadow:0 8px 24px rgba(92,68,70,.14);
+}
+.map-key span{font-weight:700;color:#514a56}
+.map-surface .surface-title p{max-width:560px}
+.metric-card,.hazard-card,.surface{
+  box-shadow:0 8px 26px rgba(106,72,75,.08);
+}
+@media(max-width:1450px){
+  .hero h1{font-size:clamp(44px,4.15vw,68px)}
+  .hero{grid-template-columns:minmax(560px,.9fr) minmax(600px,1.1fr)}
+}
+@media(max-width:1000px){
+  .hero-line{display:inline}
+  .hero h1 .gradient-text{white-space:normal}
+}
