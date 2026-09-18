@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="description" content="KINGAI Disaster Watch: U.S. earthquake, tsunami, volcano and tornado situational intelligence." />
+  <meta name="description" content="KINGAI Disaster Watch: U.S. multi-hazard situational intelligence with official alerts, forecast evidence and explainable AI-assisted signal projections." />
   <title>KINGAI Disaster Watch</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -13,65 +13,118 @@
   <header class="topbar">
     <div>
       <div class="brand">KINGAI <span>DISASTER WATCH</span></div>
-      <div class="subtitle">United States multi-hazard situational intelligence</div>
+      <div class="subtitle">U.S. multi-hazard situational intelligence · official data + explainable AI signal projection</div>
     </div>
-    <div class="live"><span class="pulse"></span><span id="freshness">Loading live sources…</span></div>
+    <div class="top-actions">
+      <span class="status-pill">LIVE</span>
+      <div class="live"><span class="pulse"></span><span id="freshness">Loading live sources…</span></div>
+    </div>
   </header>
 
   <main>
     <section class="hero panel">
-      <div>
-        <div class="eyebrow">EXTREME MULTI-HAZARD SCENARIO INDEX</div>
+      <div class="hero-score">
+        <div class="eyebrow">CURRENT EMHSI</div>
         <div class="score-row"><span id="overallScore" class="score">--</span><span class="score-max">/100</span></div>
         <div id="overallLabel" class="risk-label">Calculating…</div>
+        <div class="mini-note">Current operational severity, not disaster probability.</div>
       </div>
       <div class="hero-copy">
-        <h1>One national view of four high-impact hazards.</h1>
-        <p>Official observations and warnings are normalized into a transparent severity index. This is a situational-awareness system, <strong>not a literal probability that an apocalypse will happen</strong>.</p>
+        <div class="eyebrow">NATIONAL SITUATION</div>
+        <h1>See what is happening now, what official forecasts indicate, and how the signal may evolve.</h1>
+        <p>KINGAI combines authoritative observations, active warnings, official short-range outlooks and an experimental explainable projection layer. Official emergency instructions always outrank model output.</p>
         <div class="quality-strip" aria-label="Data quality">
           <div><span class="quality-label">Coverage</span><strong id="coverageValue">--</strong></div>
           <div><span class="quality-label">Source confidence</span><strong id="confidenceValue">--</strong></div>
-          <div><span class="quality-label">Model</span><strong id="modelValue">--</strong></div>
+          <div><span class="quality-label">Current model</span><strong id="modelValue">--</strong></div>
+          <div><span class="quality-label">Projection model</span><strong id="projectionModel">--</strong></div>
         </div>
         <div id="sourceState" class="source-state"></div>
       </div>
     </section>
 
     <section class="cards" aria-label="Hazard status">
-      <article class="hazard-card"><div class="icon">EQ</div><div><div class="card-name">Earthquake</div><div id="eqScore" class="card-score">--</div><div id="eqDetail" class="card-detail">USGS feed</div></div></article>
-      <article class="hazard-card"><div class="icon">TS</div><div><div class="card-name">Tsunami</div><div id="tsScore" class="card-score">--</div><div id="tsDetail" class="card-detail">NOAA warning centers</div></div></article>
-      <article class="hazard-card"><div class="icon">VO</div><div><div class="card-name">Volcano</div><div id="voScore" class="card-score">--</div><div id="voDetail" class="card-detail">USGS HANS</div></div></article>
-      <article class="hazard-card"><div class="icon">TO</div><div><div class="card-name">Tornado</div><div id="toScore" class="card-score">--</div><div id="toDetail" class="card-detail">NWS active alerts</div></div></article>
+      <article class="hazard-card"><div class="icon">EQ</div><div class="card-body"><div class="card-name">Earthquake</div><div id="eqScore" class="card-score">--</div><div id="eqDetail" class="card-detail">USGS feed</div></div></article>
+      <article class="hazard-card"><div class="icon">TS</div><div class="card-body"><div class="card-name">Tsunami</div><div id="tsScore" class="card-score">--</div><div id="tsDetail" class="card-detail">NOAA warning centers</div></div></article>
+      <article class="hazard-card"><div class="icon">VO</div><div class="card-body"><div class="card-name">Volcano</div><div id="voScore" class="card-score">--</div><div id="voDetail" class="card-detail">USGS HANS</div></div></article>
+      <article class="hazard-card"><div class="icon">TO</div><div class="card-body"><div class="card-name">Tornado</div><div id="toScore" class="card-score">--</div><div id="toDetail" class="card-detail">NWS + SPC</div></div></article>
+    </section>
+
+    <section class="panel forecast-panel">
+      <div class="section-head forecast-head">
+        <div>
+          <div class="eyebrow">AI-ASSISTED SIGNAL PROJECTION</div>
+          <h2>How operational attention may evolve</h2>
+          <p class="section-copy">Experimental projection of hazard signals—not the probability that a specific disaster will occur.</p>
+        </div>
+        <div id="horizonTabs" class="segmented" aria-label="Forecast horizon"></div>
+      </div>
+      <div class="forecast-layout">
+        <div class="forecast-summary">
+          <div class="forecast-score-line"><span id="forecastScore" class="forecast-score">--</span><span>/100</span></div>
+          <div id="forecastLabel" class="forecast-label">Waiting for model output…</div>
+          <div class="forecast-metrics">
+            <div><span>Uncertainty range</span><strong id="forecastRange">--</strong></div>
+            <div><span>Model confidence</span><strong id="forecastConfidence">--</strong></div>
+            <div><span>Signal trend</span><strong id="forecastTrend">--</strong></div>
+          </div>
+          <div id="forecastDrivers" class="driver-list"></div>
+        </div>
+        <div id="forecastHazards" class="forecast-hazards"></div>
+      </div>
+      <div class="forecast-warning"><strong>Important:</strong> earthquake output is activity-persistence only; tsunami output projects official-message persistence; longer horizons intentionally lose confidence. This layer never overrides USGS, NOAA/NWS or local emergency instructions.</div>
     </section>
 
     <section class="grid">
       <article class="panel map-panel">
-        <div class="section-head"><div><div class="eyebrow">LIVE NATIONAL MAP</div><h2>Current hazard signals</h2></div><div class="legend">● earthquakes &nbsp; ◆ volcanoes &nbsp; solid tornado alerts &nbsp; dashed SPC tornado outlook</div></div>
+        <div class="section-head">
+          <div><div class="eyebrow">LIVE NATIONAL MAP</div><h2>Current hazard signals + official outlooks</h2></div>
+          <div class="legend">Use the layer control to separate observations, warnings and forecast polygons.</div>
+        </div>
         <div id="map" role="img" aria-label="Map of current U.S. hazard signals"></div>
       </article>
       <aside class="panel events-panel">
-        <div class="eyebrow">HIGHEST-PRIORITY SIGNALS</div>
+        <div class="eyebrow">PRIORITY INTELLIGENCE</div>
         <h2>What needs attention</h2>
+        <div id="eventFilters" class="event-filters"></div>
         <div id="events" class="events"><div class="loading">Waiting for official feeds…</div></div>
       </aside>
+    </section>
+
+    <section class="intel-grid">
+      <article class="panel intel-panel">
+        <div class="eyebrow">OFFICIAL FORECAST EVIDENCE</div>
+        <h2>SPC Day 1 tornado outlook</h2>
+        <div id="spcPanel" class="intel-body loading">Loading official outlook…</div>
+      </article>
+      <article class="panel intel-panel">
+        <div class="eyebrow">SOURCE HEALTH</div>
+        <h2>Can the dashboard be trusted right now?</h2>
+        <div id="sourceHealth" class="source-health"></div>
+      </article>
+      <article class="panel intel-panel">
+        <div class="eyebrow">MODEL TRANSPARENCY</div>
+        <h2>What the AI layer actually does</h2>
+        <div id="modelTransparency" class="intel-body loading">Loading model metadata…</div>
+      </article>
     </section>
 
     <section class="panel methodology">
       <div>
         <div class="eyebrow">HOW TO READ THIS</div>
-        <h2>Monitoring + official warnings + transparent scoring</h2>
+        <h2>Observations, warnings, forecasts and projections are different things</h2>
       </div>
       <div class="method-grid">
-        <p><strong>Earthquakes:</strong> recent M2.5+ events across the contiguous U.S., Alaska, Hawaii and U.S. territories, with severity driven mainly by the largest recent magnitude.</p>
-        <p><strong>Tsunamis:</strong> NOAA/NWS warning-center messages. Warning, advisory and watch levels affect the live score only while fresh inside the 24-hour safety window.</p>
-        <p><strong>Volcanoes:</strong> the latest USGS observatory notice for each volcano, never the historical maximum alert from older notices.</p>
-        <p><strong>Tornadoes:</strong> active NWS Tornado Warnings and Watches drive the current score. NOAA/NWS SPC Day 1 tornado probabilities are shown separately as official forecast evidence while KINGAI calibrates how—or whether—to incorporate them into the index.</p>
+        <p><strong>Earthquakes:</strong> recent M2.5+ USGS events drive current severity. The AI layer may project persistence of current activity, but does not predict an exact future earthquake.</p>
+        <p><strong>Tsunamis:</strong> NOAA warning-center messages affect the live score only while fresh. Projection describes persistence of current message state, not the probability of a new tsunami.</p>
+        <p><strong>Volcanoes:</strong> latest USGS observatory notice per volcano drives current severity. Longer persistence reflects the slower-changing nature of alert-state evidence.</p>
+        <p><strong>Tornadoes:</strong> active NWS warnings/watches drive current EMHSI. SPC Day 1 probabilities are official forecast evidence and can support the experimental future-signal projection while valid.</p>
       </div>
-      <p class="disclaimer">Coverage and source confidence describe authoritative-feed availability, not the probability that a disaster will occur. For life-safety decisions, follow USGS, NOAA/NWS, local emergency management and evacuation instructions.</p>
+      <p class="disclaimer">Coverage and source confidence describe authoritative-feed availability, not disaster probability. Projection confidence describes model support and horizon uncertainty, not certainty that an event will occur. For life-safety decisions, follow official alerts and local emergency management.</p>
     </section>
   </main>
 
-  <footer>© 2026 KINGAI · hazard.kingai.work · Built for resilience, not sensationalism.</footer>
+  <footer>© 2026 KINGAI · hazard.kingai.work · Built for resilience, transparency and human decision support.</footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/app.js" defer></script>
 </body>
