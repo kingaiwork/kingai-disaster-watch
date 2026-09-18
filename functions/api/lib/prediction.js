@@ -153,9 +153,17 @@ export function buildPrediction(data, generatedAt=new Date().toISOString()) {
   return {
     model: {
       name: 'KINGAI Hybrid Signal Ensemble',
-      version: 'KHSE-v0.1',
+      version: 'KHSE-v0.2',
       status: 'experimental-uncalibrated',
-      architecture: 'hazard-specific state persistence + official forecast priors where available + source-freshness weighting'
+      architecture: 'hazard-specific state persistence + official forecast priors where available + source-freshness weighting',
+      formulas: {
+        persistence: 'projected = current × 2^(-horizonHours / halfLifeHours)',
+        freshness: 'freshness = clamp(2^(-evidenceAgeHours / (2 × halfLifeHours)), 0.15, 1)',
+        confidence: 'confidence = freshness × horizonQuality × sourceCoverage',
+        uncertainty: 'width = 7 + (1-confidence)×27 + horizonPenalty; overall width = 8 + (1-confidence)×25 + horizonPenalty',
+        ensemble: 'overall projection = max(hazard projections) + 4 × max(0, hazardsAtOrAbove50 − 1), clamped 0–100'
+      },
+      halfLivesHours: { earthquake: 10, tsunami: 4, volcano: 120, tornado: 2.5 }
     },
     generatedAt,
     horizons,
