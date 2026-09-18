@@ -5,6 +5,33 @@ const esc = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').r
 let lastData = null;
 let selectedHorizon = 6;
 let activeEventFilter = 'ALL';
+const CACHE_KEY = 'kingai-disaster-watch:last-good-v2';
+const CACHE_TTL_MS = 6 * 3600 * 1000;
+
+function saveCache(data) {
+  try {
+    const copy = structuredClone(data);
+    if (copy.earthquake?.events) copy.earthquake.events = copy.earthquake.events.slice(0, 40);
+    if (copy.tsunami?.messages) copy.tsunami.messages = copy.tsunami.messages.slice(0, 12);
+    if (copy.volcano?.volcanoes) copy.volcano.volcanoes = copy.volcano.volcanoes.slice(0, 24);
+    if (copy.tornado?.outlook) {
+      copy.tornado.outlook.categoricalPolygons = [];
+      copy.tornado.outlook.tornadoPolygons = [];
+    }
+    if (copy.tornado?.alerts) copy.tornado.alerts = copy.tornado.alerts.slice(0, 20);
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: copy }));
+  } catch (_) {}
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.data || Date.now() - Number(parsed.savedAt || 0) > CACHE_TTL_MS) return null;
+    return parsed.data;
+  } catch (_) { return null; }
+}
 
 const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.5, -98.35], 4);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -27,6 +54,26 @@ L.control.layers({}, {
   'SPC tornado probability': layers.tornadoProbability,
   'NWS tornado alerts': layers.tornadoAlerts
 }, { collapsed: true, position: 'topright' }).addTo(map);
+
+const MAP_VIEWS = {
+  us: { center:[39.2,-98.2], zoom:4 },
+  alaska: { center:[63.5,-151], zoom:3.5 },
+  hawaii: { center:[20.8,-157.4], zoom:6 },
+  territories: { center:[18.2,-66.4], zoom:5 }
+};
+
+function bindMapViews() {
+  const box = byId('mapViewTabs');
+  if (!box) return;
+  box.querySelectorAll('button').forEach(btn => {
+    btn.onclick = () => {
+      box.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      btn.classList.add('active');
+      const v = MAP_VIEWS[btn.dataset.view] || MAP_VIEWS.us;
+      map.setView(v.center, v.zoom, { animate:true });
+    };
+  });
+}
 
 function band(score) {
   if (!Number.isFinite(Number(score))) return 'Unknown';
@@ -168,7 +215,7 @@ function clearMap() { Object.values(layers).forEach(x=>x.clearLayers()); }
 
 function categoryStyle(value) {
   const v=Number(value);
-  return { color: v>=6?'#d9556d':v>=4?'#e69743':'#bb79c9', weight:v>=6?2.5:1.8, fillOpacity:.08, dashArray:'5 5' };
+  return { color: v>=6?'#d9556d':v>=4?'#e69743':'#bb79c9', fillColor:v>=6?'#ee7a83':v>=4?'#f2b367':'#d8a0e2', weight:v>=6?2.5:1.8, fillOpacity:v>=6?.18:v>=4?.12:.08, dashArray:v>=6?'':'4 5' };
 }
 
 function plot(data) {
@@ -176,13 +223,24 @@ function plot(data) {
   for (const e of data.earthquake?.events||[]) {
     if (!Number.isFinite(e.lat)||!Number.isFinite(e.lng)) continue;
     const r=Math.max(4,Math.min(14,(Number(e.magnitude)||0)*1.5));
-    L.circleMarker([e.lat,e.lng],{radius:r,color:'#ec5b67',fillColor:'#ff8070',fillOpacity:.55,weight:1.5})
-      .addTo(layers.earthquakes).bindPopup(popup(`M${e.magnitude} earthquake`,[e.place,Number.isFinite(e.depth)?`Depth: ${e.depth} km`:'',e.time?new Date(e.time).toLocaleString():'']));
+    L.marker([e.lat,e.lng], {
+      icon: L.divIcon({
+        className:'hazard-marker',
+        html:`<span class="hazard-pulse" style="--pulse:#ef6470;width:${Math.round(r+8)}px;height:${Math.round(r+8)}px"></span>`,
+        iconSize:[Math.round(r+16),Math.round(r+16)],
+        iconAnchor:[Math.round((r+16)/2),Math.round((r+16)/2)]
+      })
+    }).addTo(layers.earthquakes).bindPopup(popup(`M${e.magnitude} earthquake`,[e.place,Number.isFinite(e.depth)?`Depth: ${e.depth} km`:'',e.time?new Date(e.time).toLocaleString():'']));
   }
   for (const v of data.volcano?.volcanoes||[]) {
     if (!Number.isFinite(v.lat)||!Number.isFinite(v.lng)) continue;
-    L.circleMarker([v.lat,v.lng],{radius:7,color:'#e68b31',fillColor:'#f7ad44',fillOpacity:.72,weight:2})
-      .addTo(layers.volcanoes).bindPopup(popup(v.name,[`Alert: ${v.alertLevel||'unknown'}`,`Aviation: ${v.colorCode||'unknown'}`,v.synopsis||'']));
+    L.marker([v.lat,v.lng], {
+      icon:L.divIcon({
+        className:'hazard-marker',
+        html:'<span class="hazard-pulse volcano" style="--pulse:#ed9638"></span>',
+        iconSize:[22,22],iconAnchor:[11,11]
+      })
+    }).addTo(layers.volcanoes).bindPopup(popup(v.name,[`Alert: ${v.alertLevel||'unknown'}`,`Aviation: ${v.colorCode||'unknown'}`,v.synopsis||'']));
   }
   for (const p of data.tornado?.outlook?.categoricalPolygons||[]) {
     if (!p.geometry) continue;
@@ -237,12 +295,18 @@ function renderForecast(data) {
   const y=(v)=>hg-pad-(Math.max(0,Math.min(100,v))/100)*(hg-pad*2);
   const line=points.map((p,i)=>`${x(i)},${y(p.score)}`).join(' ');
   const area=`M ${x(0)} ${hg-pad} L ${points.map((p,i)=>`${x(i)} ${y(p.score)}`).join(' L ')} L ${x(points.length-1)} ${hg-pad} Z`;
+  const intervalPoints = [{low:current,high:current}, ...hs.map(v=>({low:Number(v.interval?.[0] ?? v.score),high:Number(v.interval?.[1] ?? v.score)}))];
+  const upper = intervalPoints.map((p,i)=>`${x(i)},${y(p.high)}`).join(' ');
+  const lower = intervalPoints.map((p,i)=>`${x(intervalPoints.length-1-i)},${y(intervalPoints[intervalPoints.length-1-i].low)}`).join(' ');
+  const bandPath = `M ${upper.replaceAll(' ', ' L ')} L ${lower.replaceAll(' ', ' L ')} Z`;
   const selectedIndex=points.findIndex(p=>p.hours===selectedHorizon);
   byId('forecastChart').innerHTML=`
-    <defs><linearGradient id="warmFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#eb6394" stop-opacity=".34"/><stop offset="1" stop-color="#d767d4" stop-opacity=".03"/></linearGradient></defs>
+    <defs><linearGradient id="warmFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#eb6394" stop-opacity=".24"/><stop offset="1" stop-color="#d767d4" stop-opacity=".02"/></linearGradient></defs>
     ${[0,25,50,75,100].map(v=>`<line x1="${pad}" x2="${w-pad}" y1="${y(v)}" y2="${y(v)}" stroke="#eadad8" stroke-width="1"/><text x="8" y="${y(v)+4}" font-size="10" fill="#8c7e86">${v}</text>`).join('')}
-    <path d="${area}" fill="url(#warmFill)"/><polyline points="${line}" fill="none" stroke="#e65d8d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    ${points.map((pt,i)=>`<circle cx="${x(i)}" cy="${y(pt.score)}" r="${i===selectedIndex?6:4}" fill="#fff" stroke="${i===selectedIndex?'#c74fc8':'#e65d8d'}" stroke-width="3"/><text x="${x(i)}" y="${hg-12}" text-anchor="middle" font-size="10" fill="#786d77">${pt.label}</text>`).join('')}
+    <path d="${bandPath}" class="forecast-band"/>
+    <path d="${area}" fill="url(#warmFill)"/>
+    <polyline points="${line}" fill="none" stroke="#b35dcc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points.map((pt,i)=>`<circle cx="${x(i)}" cy="${y(pt.score)}" r="${i===selectedIndex?6:4}" fill="#fff" stroke="${i===0?'#ef5e7b':'#b35dcc'}" stroke-width="3"/><text x="${x(i)}" y="${hg-12}" text-anchor="middle" font-size="10" fill="#786d77">${pt.label}</text>`).join('')}
     ${selectedIndex>=0?`<rect x="${x(selectedIndex)-28}" y="${Math.max(10,y(points[selectedIndex].score)-48)}" width="56" height="30" rx="8" fill="#fff" stroke="#e3d3d5"/><text x="${x(selectedIndex)}" y="${Math.max(28,y(points[selectedIndex].score)-29)}" text-anchor="middle" font-size="12" font-weight="800" fill="#3a3040">${points[selectedIndex].score}</text>`:''}
   `;
 }
@@ -283,25 +347,40 @@ function renderSpc(data) {
     <div class="spc-note">${esc(o.semantics||'Official NOAA/NWS SPC forecast evidence.')} This official probability is displayed separately from the current EMHSI tornado score and is used by KHSE only while the selected horizon falls inside the product valid period.</div>`;
 }
 
+function renderAll(data, {cached=false}={}) {
+  lastData=data;
+  renderTop(data);
+  plot(data);
+  renderEvents(data);
+  renderForecast(data);
+  renderSourceHealth(data);
+  renderMethodology(data);
+  renderSpc(data);
+  bindMapViews();
+  document.body.classList.remove('is-loading');
+  if (cached) {
+    byId('freshness').innerHTML = '<span class="cache-note">Previous snapshot · refreshing…</span>';
+    byId('heroLiveSummary').textContent = 'Showing last good snapshot while live sources refresh…';
+  }
+}
+
 async function load() {
   try {
     const r=await fetch('/api/status',{cache:'no-store'});
     if (!r.ok) throw new Error(`API ${r.status}`);
     const data=await r.json();
-    lastData=data;
-    renderTop(data);
-    plot(data);
-    renderEvents(data);
-    renderForecast(data);
-    renderSourceHealth(data);
-    renderMethodology(data);
-    renderSpc(data);
+    saveCache(data);
+    renderAll(data);
   } catch (err) {
+    document.body.classList.remove('is-loading');
     byId('freshness').textContent='Live aggregation unavailable';
     byId('systemStatus').textContent='Source aggregation error';
     byId('heroLiveSummary').textContent='Missing data is unknown, never safe.';
   }
 }
 
+const cached = loadCache();
+if (cached) renderAll(cached,{cached:true});
+bindMapViews();
 load();
 setInterval(load,5*60*1000);
