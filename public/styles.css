@@ -386,3 +386,17 @@ footer{padding-top:14px}
   .hazard-card{min-height:136px}
   .hazard-photo{width:62%}
 }
+
+
+/* v2.2 information-density polish */
+.source-row.model-health{
+  grid-column:1/-1;
+  background:linear-gradient(90deg,#fff5f1,#f9edf9);
+  border-color:#ead3e3;
+}
+.source-row.model-health strong{color:#9d477f}
+.map-view-tabs{padding-top:1px}
+.map-view-tabs button{transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
+.map-view-tabs button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(121,79,91,.09)}
+.formula-card{min-height:76px}
+.fact{min-height:68px}
