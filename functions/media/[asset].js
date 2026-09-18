@@ -14,10 +14,9 @@ const ASSETS = {
   },
   tsunami: {
     urls: [
-      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/legacy/image/2019/Jun/PHOTO-iStock-145236147-Tsunami%20hazard%20zone-1125x575-Landscape.jpg',
-      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/legacy/image/2019/Jun/tsunami_model.png'
+      'https://upload.wikimedia.org/wikipedia/commons/8/84/2011_tsunami_wave_height.jpg'
     ],
-    source: 'NOAA'
+    source: 'NOAA public domain / Wikimedia Commons mirror'
   },
   volcano: {
     urls: [
@@ -27,9 +26,9 @@ const ASSETS = {
   },
   tornado: {
     urls: [
-      'https://www.noaa.gov/sites/default/files/styles/landscape_width_1275/public/2024-07/pl23_con00010.jpg'
+      'https://upload.wikimedia.org/wikipedia/commons/3/3f/Dop_binger_tornado.jpg'
     ],
-    source: 'NOAA'
+    source: 'NOAA NSSL public domain / Wikimedia Commons mirror'
   }
 };
 
@@ -53,10 +52,6 @@ export async function onRequest(context) {
   const key = String(context.params.asset || '').toLowerCase();
   const asset = ASSETS[key];
   if (!asset) return new Response('Not found', { status: 404 });
-
-  if (key === 'tsunami' || key === 'tornado') {
-    return Response.redirect(asset.urls[0], 302);
-  }
 
   const cache = caches.default;
   const cacheKey = new Request(new URL(context.request.url), { method: 'GET' });
