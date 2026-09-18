@@ -495,3 +495,72 @@ footer{padding-top:14px}
   .hero-line{display:inline}
   .hero h1 .gradient-text{white-space:normal}
 }
+
+
+/* v5 screenshot repair: visible basemap + real hazard imagery */
+.leaflet-tile-container img,
+.leaflet-tile {
+  opacity:1!important;
+  visibility:visible!important;
+}
+.leaflet-pane.leaflet-tile-pane{z-index:200}
+.leaflet-pane.leaflet-overlay-pane{z-index:400}
+.leaflet-pane.leaflet-marker-pane{z-index:600}
+.hazard-card{
+  isolation:isolate;
+  overflow:hidden;
+}
+.hazard-photo{
+  right:0;
+  width:47%;
+  opacity:1;
+  object-position:center;
+  filter:saturate(1.02) contrast(1.07) brightness(1.01);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.22) 14%,#000 42%);
+  mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.22) 14%,#000 42%);
+}
+.hazard-card:before{
+  background:linear-gradient(90deg,
+    rgba(255,255,255,.995) 0%,
+    rgba(255,255,255,.96) 35%,
+    rgba(255,255,255,.62) 54%,
+    rgba(255,255,255,.14) 76%,
+    rgba(255,255,255,.02) 100%);
+}
+.hazard-side{
+  background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.34));
+  border:0;
+  box-shadow:none;
+  backdrop-filter:none;
+  padding:5px 2px 4px 8px;
+}
+.hazard-spark{
+  background:transparent!important;
+  filter:drop-shadow(0 1px 4px rgba(255,255,255,.85));
+}
+.hazard-side small{
+  background:rgba(255,255,255,.68);
+  border-radius:999px;
+  padding:2px 5px;
+  align-self:flex-end;
+}
+.eq .hazard-photo{object-position:62% 50%}
+.ts .hazard-photo{object-position:55% 52%}
+.vo .hazard-photo{object-position:52% 45%}
+.to .hazard-photo{object-position:50% 48%}
+
+.formula-card code{
+  font-size:9.2px;
+  line-height:1.58;
+  color:#554d5c;
+}
+.fact p,.spc-note{font-size:9px;line-height:1.55}
+.formula-card h3,.fact h3{font-size:10.5px}
+.formula-card,.fact{background:rgba(255,252,249,.96)}
+
+@media(max-width:900px){
+  .hazard-photo{width:55%}
+}
+@media(max-width:620px){
+  .hazard-photo{width:62%;opacity:.94}
+}
