@@ -148,6 +148,17 @@ async function spcDay1Outlook() {
       valid: metadata.valid || '',
       expire: metadata.expire || '',
       evidenceAgeSeconds,
+      categoricalPolygons: catFeatures.map(feature => {
+        const value = Number(feature?.properties?.dn || 0);
+        return {
+          categoryValue: value,
+          categoryLabel: categoryLabels[value] || feature?.properties?.label || 'Unknown',
+          valid: feature?.properties?.valid || '',
+          expire: feature?.properties?.expire || '',
+          issue: feature?.properties?.issue || '',
+          geometry: feature?.geometry || null
+        };
+      }).filter(feature => feature.geometry),
       tornadoPolygons: tornadoFeatures.map(feature => ({
         probabilityPct: Number(feature?.properties?.dn || 0),
         valid: feature?.properties?.valid || '',
@@ -163,6 +174,7 @@ async function spcDay1Outlook() {
       maxTornadoProbabilityPct: null,
       categorical: { value: null, label: 'Unavailable' },
       evidenceAgeSeconds: null,
+      categoricalPolygons: [],
       tornadoPolygons: [],
       error: String(error?.message || error)
     };
@@ -304,7 +316,7 @@ export async function onRequestGet() {
     generatedAt,
     index: {
       score: overall,
-      model: 'EMHSI-v1.3.1',
+      model: 'EMHSI-v1.3.2',
       interpretation: 'Normalized current scenario severity; not an apocalypse probability',
       scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
       elevatedHazards: elevatedCount,
