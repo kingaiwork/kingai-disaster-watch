@@ -54,6 +54,10 @@ export async function onRequest(context) {
   const asset = ASSETS[key];
   if (!asset) return new Response('Not found', { status: 404 });
 
+  if (key === 'tsunami') {
+    return Response.redirect(asset.urls[0], 302);
+  }
+
   const cache = caches.default;
   const cacheKey = new Request(new URL(context.request.url), { method: 'GET' });
   const hit = await cache.match(cacheKey);
