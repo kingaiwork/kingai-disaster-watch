@@ -315,7 +315,7 @@ export async function onRequestGet() {
 
   const index = {
     score: overall,
-    model: 'EMHSI-v1.4.0',
+    model: 'EMHSI-v1.5.0',
     interpretation: 'Normalized current scenario severity; not an apocalypse probability',
     scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
     elevatedHazards: elevatedCount,
@@ -324,9 +324,44 @@ export async function onRequestGet() {
     quality,
     availableHazards: available,
     unknownHazards,
-    caveat: 'Source confidence describes authoritative-feed coverage, not the probability that a disaster will occur. Official warnings and evacuation instructions always take precedence.'
+    caveat: 'Source confidence describes authoritative-feed coverage, not the probability that a disaster will occur. Official warnings and evacuation instructions always take precedence.',
+    formula: 'EMHSI = clamp(max(available hazard scores) + 5 × max(0, count(scores ≥ 50) − 1), 0, 100)',
+    bands: { low: '0–19', guarded: '20–39', elevated: '40–64', high: '65–84', extreme: '85–100' }
   };
-  const payload = { generatedAt, index, ...data, sources };
+  const payload = {
+    generatedAt,
+    index,
+    ...data,
+    sources,
+    methodology: {
+      version: '2026-09-17',
+      principles: [
+        'Official alerts and observations are primary evidence.',
+        'Missing authoritative data is unknown, never silently safe.',
+        'Current EMHSI and future KHSE projections are separate outputs.',
+        'AI projections are operational-attention estimates, not exact-event predictions.'
+      ],
+      formulas: {
+        earthquake: 'base(largest M) + min(10, 2 × log2(max(1, M2.5+ count in 24h))); base thresholds: M8+=95, M7+=82, M6+=65, M5+=45, M4+=28, M3+=16, >0=8',
+        tsunami: 'current score = max fresh critical NOAA message score inside 24h; Warning=96, Advisory=72, Watch=55; Information=12 and Cancellation=0 are displayed but do not create a critical current score',
+        volcano: 'current score = maximum latest-per-volcano USGS level mapping: NORMAL=5, ADVISORY=35, WATCH=62, WARNING=92',
+        tornado: 'if warnings>0: clamp(55 + 9×warnings + min(10,2×watches)); else if watches>0: clamp(22 + 7×watches); else 0. SPC Day 1 probability is separate forecast evidence.',
+        emhsi: 'clamp(max(available hazard scores) + 5 × max(0, number of hazard scores ≥50 − 1), 0, 100)'
+      },
+      officialFacts: {
+        earthquake: 'USGS states that scientists cannot predict the exact time, location and magnitude of a major earthquake; KINGAI therefore does not claim exact earthquake prediction.',
+        tsunami: 'U.S. Tsunami Warning Centers use Warning, Advisory, Watch and Information Statement levels; warnings indicate dangerous coastal flooding and powerful currents.',
+        volcano: 'USGS volcano ground-alert levels are NORMAL, ADVISORY, WATCH and WARNING; aviation color codes are a separate aviation-hazard scale.',
+        tornado: 'SPC Day 1 tornado probabilities describe the probability of a tornado within 25 miles of a point during the valid period.'
+      },
+      sourceLinks: {
+        earthquake: 'https://www.usgs.gov/faqs/can-you-predict-earthquakes',
+        tsunami: 'https://www.tsunami.gov/?page=message_definitions',
+        volcano: 'https://www.usgs.gov/programs/VHP/alert-level-system',
+        tornado: 'https://www.spc.noaa.gov/products/outlook/'
+      }
+    }
+  };
   payload.prediction = buildPrediction(payload, generatedAt);
 
   return new Response(JSON.stringify(payload), { headers: JSON_HEADERS });
