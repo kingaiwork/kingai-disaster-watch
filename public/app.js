@@ -38,20 +38,29 @@ map.createPane('baseLabels');
 map.getPane('baseLabels').style.zIndex = 450;
 map.getPane('baseLabels').style.pointerEvents = 'none';
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+const cartoBase = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
+  crossOrigin: true,
   attribution: '&copy; OpenStreetMap contributors &copy; CARTO · official hazard overlays'
 }).addTo(map);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-  maxZoom: 19,
-  pane: 'baseLabels'
-}).addTo(map);
+let fallbackBase = null;
+let baseFallbackActivated = false;
+cartoBase.on('tileerror', () => {
+  if (baseFallbackActivated) return;
+  baseFallbackActivated = true;
+  fallbackBase = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    crossOrigin: true,
+    attribution: '&copy; OpenStreetMap contributors · official hazard overlays'
+  }).addTo(map);
+  cartoBase.remove();
+});
 
 const layers = {
   earthquakes: L.layerGroup().addTo(map),
   volcanoes: L.layerGroup().addTo(map),
-  categorical: L.layerGroup().addTo(map),
+  categorical: L.layerGroup(),
   tornadoProbability: L.layerGroup().addTo(map),
   tornadoAlerts: L.layerGroup().addTo(map)
 };
@@ -365,6 +374,7 @@ function renderSpc(data) {
 
 function renderAll(data, {cached=false}={}) {
   lastData=data;
+  setTimeout(() => map.invalidateSize({pan:false}), 60);
   renderTop(data);
   plot(data);
   renderEvents(data);
