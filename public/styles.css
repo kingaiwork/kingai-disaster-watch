@@ -400,3 +400,25 @@ footer{padding-top:14px}
 .map-view-tabs button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(121,79,91,.09)}
 .formula-card{min-height:76px}
 .fact{min-height:68px}
+
+
+/* v2.3 final visual legibility pass */
+.hazard-photo{
+  width:50%;
+  opacity:.96;
+  filter:saturate(1.02) contrast(1.08) brightness(.98);
+}
+.hazard-card:before{
+  background:linear-gradient(90deg,
+    rgba(255,255,255,.995) 0%,
+    rgba(255,255,255,.94) 34%,
+    rgba(255,255,255,.48) 58%,
+    rgba(255,255,255,.08) 100%);
+}
+.hazard-side{
+  background:rgba(255,255,255,.30);
+  border-color:rgba(255,255,255,.38);
+}
+.leaflet-baseLabels-pane{
+  filter:contrast(1.12) saturate(.92);
+}
