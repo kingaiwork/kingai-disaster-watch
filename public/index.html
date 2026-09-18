@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://assets.science.nasa.gov" crossorigin />
   <link rel="preconnect" href="https://d9-wret.s3.us-west-2.amazonaws.com" crossorigin />
   <link rel="preconnect" href="https://www.noaa.gov" crossorigin />
+  <link rel="preload" as="image" href="/media/earth" fetchpriority="high" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
@@ -58,7 +59,7 @@
           <picture class="earth-picture">
             <source media="(max-width: 760px)" srcset="https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=1200&h=1200&fit=crop&crop=faces%2Cfocalpoint" />
             <img class="earth-photo" fetchpriority="high"
-              src="https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=2048&h=2048&fit=crop&crop=faces%2Cfocalpoint"
+              src="/media/earth"
               alt="NASA Blue Marble view of North America" />
           </picture>
           <div class="earth-atmosphere"></div>
@@ -122,22 +123,22 @@
     </section>
 
     <section class="hazard-grid" id="hazards" aria-label="Hazard cards">
-      <article class="hazard-card eq"><img class="hazard-photo" loading="lazy" alt="" src="https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/cpnm23.jpg?itok=S_ZoCjyD" />
+      <article class="hazard-card eq"><img class="hazard-photo" loading="lazy" alt="" src="/media/earthquake" />
         <div class="hazard-icon">∿</div>
         <div class="hazard-main"><h2>Earthquake</h2><div class="hazard-score"><strong id="eqScore">--</strong><span>/100</span></div><b id="eqBand">--</b><p id="eqDetail">Loading USGS feed…</p></div>
         <div class="hazard-side"><div id="eqSpark" class="hazard-spark"></div><small id="eqMeta">--</small></div>
       </article>
-      <article class="hazard-card ts"><img class="hazard-photo" loading="lazy" alt="" src="https://www.noaa.gov/sites/default/files/styles/square_width_856px_webp/public/legacy/image/2021/Mar/PHOTO-%20Ludington%20meteotsunami%20wave%20over%20breakwaters-04132018-DebbieMaglothin-1500x1000%20.JPG.webp?itok=6G9EPRBH" />
+      <article class="hazard-card ts"><img class="hazard-photo" loading="lazy" alt="" src="/media/tsunami" />
         <div class="hazard-icon">◒</div>
         <div class="hazard-main"><h2>Tsunami</h2><div class="hazard-score"><strong id="tsScore">--</strong><span>/100</span></div><b id="tsBand">--</b><p id="tsDetail">Loading NOAA messages…</p></div>
         <div class="hazard-side"><div id="tsSpark" class="hazard-spark"></div><small id="tsMeta">--</small></div>
       </article>
-      <article class="hazard-card vo"><img class="hazard-photo" loading="lazy" alt="" src="https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/styles/full_width/public/thumbnails/image/IMG_7351.JPG?itok=kLQkMYWQ" />
+      <article class="hazard-card vo"><img class="hazard-photo" loading="lazy" alt="" src="/media/volcano" />
         <div class="hazard-icon">△</div>
         <div class="hazard-main"><h2>Volcano</h2><div class="hazard-score"><strong id="voScore">--</strong><span>/100</span></div><b id="voBand">--</b><p id="voDetail">Loading USGS notices…</p></div>
         <div class="hazard-side"><div id="voSpark" class="hazard-spark"></div><small id="voMeta">--</small></div>
       </article>
-      <article class="hazard-card to"><img class="hazard-photo" loading="lazy" alt="" src="https://www.noaa.gov/sites/default/files/styles/landscape_width_1275px_webp/public/2024-07/pl23_con00010.jpg.webp?h=dc7fd145&itok=aKbdccAQ" />
+      <article class="hazard-card to"><img class="hazard-photo" loading="lazy" alt="" src="/media/tornado" />
         <div class="hazard-icon">▽</div>
         <div class="hazard-main"><h2>Tornado</h2><div class="hazard-score"><strong id="toScore">--</strong><span>/100</span></div><b id="toBand">--</b><p id="toDetail">Loading NWS + SPC…</p></div>
         <div class="hazard-side"><div id="toSpark" class="hazard-spark"></div><small id="toMeta">--</small></div>
