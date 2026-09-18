@@ -23,7 +23,7 @@ const data = {
 };
 
 const result = buildPrediction(data, now);
-assert.equal(result.model.version, 'KHSE-v0.1');
+assert.equal(result.model.version, 'KHSE-v0.2');
 assert.equal(result.safety.isOccurrenceProbability, false);
 assert.equal(result.horizons.length, 3);
 
