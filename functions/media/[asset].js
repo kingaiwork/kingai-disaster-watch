@@ -54,7 +54,7 @@ export async function onRequest(context) {
   const asset = ASSETS[key];
   if (!asset) return new Response('Not found', { status: 404 });
 
-  if (key === 'tsunami') {
+  if (key === 'tsunami' || key === 'tornado') {
     return Response.redirect(asset.urls[0], 302);
   }
 
