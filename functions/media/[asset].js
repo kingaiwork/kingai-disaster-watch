@@ -1,6 +1,6 @@
 const ASSETS = {
   earth: {
-    url: 'https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=2048&h=2048&fit=clip&crop=faces%2Cfocalpoint',
+    url: 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA18033.jpg',
     source: 'NASA / Suomi NPP VIIRS'
   },
   earthquake: {
