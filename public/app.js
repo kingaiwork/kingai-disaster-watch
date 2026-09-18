@@ -59,7 +59,9 @@ const MAP_VIEWS = {
   us: { center:[39.2,-98.2], zoom:4 },
   alaska: { center:[63.5,-151], zoom:3.5 },
   hawaii: { center:[20.8,-157.4], zoom:6 },
-  territories: { center:[18.2,-66.4], zoom:5 }
+  pr: { center:[18.15,-66.25], zoom:6.4 },
+  guam: { center:[14.6,145.1], zoom:5.2 },
+  samoa: { center:[-14.25,-170.6], zoom:6 }
 };
 
 function bindMapViews() {
@@ -312,11 +314,16 @@ function renderForecast(data) {
 }
 
 function renderSourceHealth(data) {
-  const names={earthquake:'USGS EQ',tsunami:'NOAA',volcano:'USGS VHP',tornado:'NWS / SPC'};
-  byId('sourceHealth').innerHTML=Object.entries(names).map(([k,n])=>{
+  const names={earthquake:'USGS EQ',tsunami:'NOAA Tsunami',volcano:'USGS VHP',tornado:'NWS / SPC'};
+  const official = Object.entries(names).map(([k,n])=>{
     const s=data.sources?.[k];const ok=Boolean(s?.ok);
     return `<div class="source-row"><div><i class="health-dot ${ok?'ok':'bad'}"></i><strong>${n}</strong></div><span class="source-meta">${ok?humanAge(s.evidenceAgeSeconds):'unavailable'} · ${Number.isFinite(Number(s?.latencyMs))?s.latencyMs+'ms':'—'}</span></div>`;
-  }).join('');
+  });
+  const hs = projections(data);
+  const avgConfidence = hs.length ? Math.round(hs.reduce((sum,h)=>sum+Number(h.confidence||0),0)/hs.length*100) : null;
+  const modelStatus = data.prediction?.model?.status || 'unknown';
+  official.push(`<div class="source-row model-health"><div><i class="health-dot ok"></i><strong>KINGAI KHSE</strong></div><span class="source-meta">${esc(modelStatus)} · ${avgConfidence==null?'—':avgConfidence+'% avg confidence'}</span></div>`);
+  byId('sourceHealth').innerHTML=official.join('');
 }
 
 function renderMethodology(data) {
