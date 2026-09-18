@@ -34,9 +34,9 @@ function loadCache() {
 }
 
 const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.5, -98.35], 4);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+  attribution: '&copy; OpenStreetMap contributors &copy; CARTO · official hazard overlays'
 }).addTo(map);
 
 const layers = {
