@@ -34,9 +34,18 @@ function loadCache() {
 }
 
 const map = L.map('map', { zoomControl: true, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([38.7, -97.2], 4.75);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+map.createPane('baseLabels');
+map.getPane('baseLabels').style.zIndex = 450;
+map.getPane('baseLabels').style.pointerEvents = 'none';
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors &copy; CARTO · official hazard overlays'
+}).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+  maxZoom: 19,
+  pane: 'baseLabels'
 }).addTo(map);
 
 const layers = {
