@@ -1,4 +1,5 @@
 import { parseAtom } from './lib/tsunami.js';
+import { buildPrediction } from './lib/prediction.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -312,22 +313,21 @@ export async function onRequestGet() {
   const sourceConfidence = Number(coverage.toFixed(3));
   const quality = coverage === 1 ? 'complete' : coverage >= 0.75 ? 'partial' : 'degraded';
 
-  return new Response(JSON.stringify({
-    generatedAt,
-    index: {
-      score: overall,
-      model: 'EMHSI-v1.3.2',
-      interpretation: 'Normalized current scenario severity; not an apocalypse probability',
-      scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
-      elevatedHazards: elevatedCount,
-      coverage: Number(coverage.toFixed(3)),
-      sourceConfidence,
-      quality,
-      availableHazards: available,
-      unknownHazards,
-      caveat: 'Source confidence describes authoritative-feed coverage, not the probability that a disaster will occur. Official warnings and evacuation instructions always take precedence.'
-    },
-    ...data,
-    sources
-  }), { headers: JSON_HEADERS });
+  const index = {
+    score: overall,
+    model: 'EMHSI-v1.4.0',
+    interpretation: 'Normalized current scenario severity; not an apocalypse probability',
+    scope: 'United States, Alaska, Hawaii and U.S. territories where authoritative feeds provide coverage',
+    elevatedHazards: elevatedCount,
+    coverage: Number(coverage.toFixed(3)),
+    sourceConfidence,
+    quality,
+    availableHazards: available,
+    unknownHazards,
+    caveat: 'Source confidence describes authoritative-feed coverage, not the probability that a disaster will occur. Official warnings and evacuation instructions always take precedence.'
+  };
+  const payload = { generatedAt, index, ...data, sources };
+  payload.prediction = buildPrediction(payload, generatedAt);
+
+  return new Response(JSON.stringify(payload), { headers: JSON_HEADERS });
 }
