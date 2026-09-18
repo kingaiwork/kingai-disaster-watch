@@ -33,7 +33,7 @@ function loadCache() {
   } catch (_) { return null; }
 }
 
-const map = L.map('map', { zoomControl: true, attributionControl: true }).setView([39.5, -98.35], 4);
+const map = L.map('map', { zoomControl: true, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([38.7, -97.2], 4.75);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors &copy; CARTO · official hazard overlays'
@@ -56,7 +56,7 @@ L.control.layers({}, {
 }, { collapsed: true, position: 'topright' }).addTo(map);
 
 const MAP_VIEWS = {
-  us: { center:[39.2,-98.2], zoom:4 },
+  us: { center:[38.7,-97.2], zoom:4.75 },
   alaska: { center:[63.5,-151], zoom:3.5 },
   hawaii: { center:[20.8,-157.4], zoom:6 },
   pr: { center:[18.15,-66.25], zoom:6.4 },
