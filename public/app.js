@@ -246,7 +246,7 @@ function plot(data) {
     L.marker([e.lat,e.lng], {
       icon: L.divIcon({
         className:'hazard-marker',
-        html:`<span class="hazard-pulse" style="--pulse:#ef6470;width:${Math.round(r+8)}px;height:${Math.round(r+8)}px"></span>`,
+        html:`<span class="hazard-pulse ${Number(e.magnitude)>=5?'major':''}" style="--pulse:#ef6470;width:${Math.round(r+8)}px;height:${Math.round(r+8)}px">${Number(e.magnitude)>=5?`<b>M${Number(e.magnitude).toFixed(1)}</b>`:''}</span>`,
         iconSize:[Math.round(r+16),Math.round(r+16)],
         iconAnchor:[Math.round((r+16)/2),Math.round((r+16)/2)]
       })
@@ -274,6 +274,26 @@ function plot(data) {
     if (!a.geometry) continue;
     safe(()=>L.geoJSON(a.geometry,{style:{color:'#d94a80',weight:3,fillColor:'#f16f86',fillOpacity:.15}}).addTo(layers.tornadoAlerts).bindPopup(popup(a.event,[a.areaDesc||'',a.headline||''])));
   }
+  const eqMajor = (data.earthquake?.events||[]).filter(e=>Number(e.magnitude)>=5).length;
+  const elevatedVolcanoes = Number(data.volcano?.elevated||0);
+  const tornadoActive = Number(data.tornado?.warningCount||0)+Number(data.tornado?.watchCount||0);
+  const mapStats = byId('mapLiveStats');
+  if (mapStats) mapStats.innerHTML = `
+    <span><b>${eqMajor}</b> M5+ earthquakes</span>
+    <span><b>${elevatedVolcanoes}</b> elevated volcanoes</span>
+    <span><b>${tornadoActive}</b> tornado alerts</span>
+    <span><b>${data.tornado?.outlook?.maxTornadoProbabilityPct ?? 0}%</b> SPC max</span>`;
+}
+
+function eventThumb(filter) {
+  return ({ EQ:'/media/earthquake?v=3', TS:'/media/tsunami?v=3', VO:'/media/volcano?v=3', TO:'/media/tornado?v=3' })[filter] || '/media/earth?v=4';
+}
+
+function eventUrgency(rank) {
+  if (rank >= 85) return 'critical';
+  if (rank >= 60) return 'high';
+  if (rank >= 35) return 'medium';
+  return 'low';
 }
 
 function eventRows(data) {
@@ -284,7 +304,9 @@ function eventRows(data) {
   for (const t of (data.tsunami?.messages||[]).filter(x=>x.fresh24h)) rows.push({rank:t.level==='WARNING'?96:t.level==='ADVISORY'?72:t.level==='WATCH'?55:20,filter:'TS',type:'TSUNAMI',severity:t.level,title:t.title,text:t.updated?`Updated ${new Date(t.updated).toLocaleString()} · ${t.center}`:'NOAA message'});
   for (const v of data.volcano?.volcanoes||[]) if (['WARNING','WATCH','ADVISORY'].includes(String(v.alertLevel).toUpperCase())) rows.push({rank:v.alertLevel==='WARNING'?92:v.alertLevel==='WATCH'?62:35,filter:'VO',type:'VOLCANO',severity:v.alertLevel,title:v.name,text:v.synopsis||'USGS notice'});
   for (const e of (data.earthquake?.events||[]).filter(x=>Number(x.magnitude)>=4).slice(0,12)) rows.push({rank:Number(e.magnitude)*10,filter:'EQ',type:'EARTHQUAKE',severity:`M${e.magnitude}`,title:e.place,text:e.time?new Date(e.time).toLocaleString():'USGS event'});
-  return rows.sort((a,b)=>b.rank-a.rank);
+  return rows
+    .sort((a,b)=>b.rank-a.rank)
+    .map(row => ({ ...row, thumb:eventThumb(row.filter), urgency:eventUrgency(row.rank) }));
 }
 
 function renderEvents(data) {
@@ -293,7 +315,15 @@ function renderEvents(data) {
   byId('eventFilters').innerHTML=defs.map(([k,l])=>`<button class="filter-btn ${activeEventFilter===k?'active':''}" data-filter="${k}">${l}</button>`).join('');
   byId('eventFilters').querySelectorAll('button').forEach(b=>b.onclick=()=>{activeEventFilter=b.dataset.filter;renderEvents(lastData)});
   const visible=activeEventFilter==='ALL'?rows:rows.filter(r=>r.filter===activeEventFilter);
-  byId('events').innerHTML=visible.length?visible.slice(0,18).map(r=>`<article class="event"><div class="event-top"><span class="event-type">${esc(r.type)}</span><span class="event-severity">${esc(r.severity)}</span></div><h3>${esc(r.title)}</h3><p>${esc(r.text)}</p></article>`).join(''):'<div class="loading">No current signals in this filter.</div>';
+  byId('events').innerHTML=visible.length?visible.slice(0,18).map((r,i)=>`<article class="event event-rich ${r.urgency}">
+    <div class="event-thumb-wrap"><img class="event-thumb" src="${r.thumb}" alt="" loading="lazy" /></div>
+    <div class="event-content">
+      <div class="event-top"><span class="event-type">${esc(r.type)}</span><span class="event-severity">${esc(r.severity)}</span></div>
+      <h3>${esc(r.title)}</h3>
+      <p>${esc(r.text)}</p>
+      <div class="event-foot"><span>#${i+1} priority</span><span>${r.urgency.toUpperCase()}</span></div>
+    </div>
+  </article>`).join(''):'<div class="loading">No current signals in this filter.</div>';
 }
 
 function renderForecast(data) {
@@ -329,6 +359,15 @@ function renderForecast(data) {
     ${points.map((pt,i)=>`<circle cx="${x(i)}" cy="${y(pt.score)}" r="${i===selectedIndex?6:4}" fill="#fff" stroke="${i===0?'#ef5e7b':'#b35dcc'}" stroke-width="3"/><text x="${x(i)}" y="${hg-12}" text-anchor="middle" font-size="10" fill="#786d77">${pt.label}</text>`).join('')}
     ${selectedIndex>=0?`<rect x="${x(selectedIndex)-28}" y="${Math.max(10,y(points[selectedIndex].score)-48)}" width="56" height="30" rx="8" fill="#fff" stroke="#e3d3d5"/><text x="${x(selectedIndex)}" y="${Math.max(28,y(points[selectedIndex].score)-29)}" text-anchor="middle" font-size="12" font-weight="800" fill="#3a3040">${points[selectedIndex].score}</text>`:''}
   `;
+  const hazardNames={earthquake:'Earthquake',tsunami:'Tsunami',volcano:'Volcano',tornado:'Tornado'};
+  const hazardCodes={earthquake:'EQ',tsunami:'TS',volcano:'VO',tornado:'TO'};
+  const grid=byId('forecastHazardGrid');
+  if (grid) grid.innerHTML=Object.entries(hazardNames).map(([key,name])=>{
+    const p=h.hazards?.[key]||{};
+    const conf=Number.isFinite(Number(p.confidence))?Math.round(Number(p.confidence)*100):null;
+    const range=Array.isArray(p.interval)?`${p.interval[0]}–${p.interval[1]}`:'—';
+    return `<div class="forecast-hazard-item"><span class="forecast-code ${key}">${hazardCodes[key]}</span><div><strong>${name}</strong><small>${Number.isFinite(Number(p.score))?p.score:'—'} · ${humanTrend(p.trend)} · ${conf==null?'—':conf+'%'} confidence · range ${range}</small></div></div>`;
+  }).join('');
 }
 
 function renderSourceHealth(data) {
