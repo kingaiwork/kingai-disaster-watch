@@ -59,7 +59,7 @@
           <picture class="earth-picture">
             <source media="(max-width: 760px)" srcset="https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia18/pia18033/PIA18033.jpg?w=1200&h=1200&fit=crop&crop=faces%2Cfocalpoint" />
             <img class="earth-photo" fetchpriority="high"
-              src="/media/earth?v=3"
+              src="/media/earth?v=4"
               alt="NASA Blue Marble view of North America" />
           </picture>
           <div class="earth-atmosphere"></div>
@@ -149,7 +149,7 @@
       <article class="surface map-surface">
         <div class="surface-title"><div><h2>Live Hazard Map</h2><p>Real-time events, official risk layers, and monitored hazard signals.</p></div><span class="surface-badge">LIVE</span></div><div class="map-view-tabs" id="mapViewTabs"><button class="active" data-view="us">U.S. View</button><button data-view="alaska">Alaska</button><button data-view="hawaii">Hawaii</button><button data-view="pr">Puerto Rico / USVI</button><button data-view="guam">Guam / CNMI</button><button data-view="samoa">American Samoa</button></div>
         <div class="map-wrap">
-          <div class="map-key">
+          <div class="map-live-stats" id="mapLiveStats"><span>Loading map intelligence…</span></div><div class="map-key">
             <span><i class="dot eq"></i> Earthquake</span>
             <span><i class="dot ts"></i> Tsunami</span>
             <span><i class="dot vo"></i> Volcano</span>
@@ -176,7 +176,7 @@
             <span>TREND</span><strong id="forecastTrend">--</strong>
           </div>
         </div>
-        <div id="forecastDrivers" class="drivers"></div>
+        <div id="forecastDrivers" class="drivers"></div><div id="forecastHazardGrid" class="forecast-hazard-grid"></div>
         <div class="source-health-mini">
           <div class="mini-title">Source Health / Model Transparency</div>
           <div id="sourceHealth" class="source-health"></div>
