@@ -1,0 +1,1 @@
+{"schema":"kingai.synapse-manifest.v1","repository":"kingaiwork/kingai-disaster-watch","protocol":"kingai.global-synapse.v1","enabled":true,"control_plane":"private-authority-hidden","authority_class":"public-product-delivery","awareness":"sanitized-public-change-awareness","adaptation":"sanitized-upstream-only","private_source_import_allowed":false,"secrets_allowed":false}
