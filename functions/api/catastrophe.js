@@ -56,7 +56,7 @@ async function asteroidRadar() {
     palermoMax: n(row.ps_max),
     torinoMax: n(row.ts_max),
     encounterRange: row.range || '',
-    earliestEncounterYear: Number((String(row.range || '').match(/\\d{4}/) || [])[0]) || null,
+    earliestEncounterYear: Number((String(row.range || '').match(/[0-9]{4}/) || [])[0]) || null,
     lastObservation: row.last_obs || ''
   })).filter(x => x.impactProbability != null);
 
