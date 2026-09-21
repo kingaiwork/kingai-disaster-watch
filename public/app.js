@@ -449,3 +449,99 @@ if (cached) renderAll(cached,{cached:true});
 bindMapViews();
 load();
 setInterval(load,5*60*1000);
+
+
+// KINGAI Global Anomaly Radar UI
+(() => {
+  const radarEsc = (v='') => String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  const levelRank = {C0:0,C1:1,C2:2,C3:3,C4:4,C5:5};
+  const levelLabel = {
+    C0:'BASELINE', C1:'ANOMALY', C2:'CONFIRMED ELEVATED',
+    C3:'SEVERE', C4:'CATASTROPHIC', C5:'EXTINCTION-CLASS'
+  };
+  const levelClass = (level) => 'level-' + String(level || 'unknown').toLowerCase();
+
+  function moduleDetail(key, m) {
+    if (!m || !m.level) return 'Authoritative source unavailable';
+    if (key === 'asteroid') {
+      const t=m.topCandidate;
+      return t ? `${t.name} · Palermo ${t.palermoCumulative ?? 'n/a'} · ${t.diameterKm ?? '?'} km` : 'No material Sentry candidate';
+    }
+    if (key === 'megaquake') {
+      const e=m.largest24h;
+      return e ? `M${Number(e.magnitude||0).toFixed(1)} · ${e.place||'unknown'}` : 'No M4.5+ event';
+    }
+    if (key === 'tsunami') return m.activeCritical ? `${m.activeCritical} active critical message(s)` : 'No fresh critical message';
+    if (key === 'volcano') return m.highest ? `${m.highest.name} · ${m.highest.alertLevel}` : 'No elevated USGS notice';
+    if (key === 'solar') return `Kp ${m.maxKp24h ?? '?'} · wind ${m.solarWindKms ?? '?'} km/s · Bz ${m.bzGsmNt ?? '?'} nT`;
+    return m.semantics || '';
+  }
+
+  function renderRadar(data) {
+    const global=data?.global||{};
+    const level=global.level || 'UNKNOWN';
+    const levelEl=document.getElementById('radarGlobalLevel');
+    if(levelEl){
+      levelEl.textContent=level;
+      levelEl.className=levelClass(level);
+    }
+    const labelEl=document.getElementById('radarGlobalLabel');
+    if(labelEl) labelEl.textContent=levelLabel[level] || 'SOURCE DEGRADED';
+    const indexEl=document.getElementById('radarIndex');
+    if(indexEl) indexEl.textContent=Number.isFinite(global.catastropheIndex) ? Math.round(global.catastropheIndex) : '--';
+
+    for (const [key,m] of Object.entries(data?.modules||{})) {
+      const card=document.querySelector(`[data-radar="${CSS.escape(key)}"]`);
+      if(!card) continue;
+      card.classList.remove('level-c0','level-c1','level-c2','level-c3','level-c4','level-c5','level-unknown');
+      card.classList.add(levelClass(m?.level));
+      const strong=card.querySelector('strong');
+      const p=card.querySelector('p');
+      if(strong) strong.textContent=m?.level || 'UNKNOWN';
+      if(p) p.textContent=moduleDetail(key,m);
+      card.title=(m?.evidence||[]).join('\n');
+    }
+
+    const signals=Array.isArray(data?.weakSignals)?data.weakSignals:[];
+    const count=document.getElementById('radarSignalCount');
+    if(count) count.textContent=String(signals.length);
+    const list=document.getElementById('radarSignals');
+    if(list){
+      list.innerHTML=signals.length ? signals.map(s=>`
+        <div class="radar-signal ${levelClass(s.level)}">
+          <b>${radarEsc(s.level)}</b>
+          <div><strong>${radarEsc(s.title)}</strong><small>${radarEsc((s.evidence||[])[0]||'Official anomaly detected')}</small></div>
+          <em>${Number.isFinite(s.anomalyScore)?Math.round(s.anomalyScore):'--'}</em>
+        </div>`).join('') : '<span class="radar-empty">No C1+ anomaly in available authoritative evidence.</span>';
+    }
+
+    const health=document.getElementById('radarSourceHealth');
+    if(health){
+      health.innerHTML=Object.entries(data?.sources||{}).map(([key,s])=>
+        `<span class="${s?.ok?'ok':'bad'}"><i></i>${radarEsc(key.toUpperCase())}</span>`
+      ).join('');
+    }
+    const fresh=document.getElementById('radarFreshness');
+    if(fresh){
+      const age=Math.max(0,Math.round((Date.now()-Date.parse(data.generatedAt||''))/1000));
+      fresh.textContent=Number.isFinite(age) ? `Last fusion ${age}s ago · ${radarEsc(data?.model?.version||'')}` : 'Live fusion';
+    }
+    const cov=document.getElementById('radarCoverage');
+    if(cov) cov.textContent=`Coverage ${Math.round(Number(global.coverage||0)*100)}% · ${String(global.quality||'unknown').toUpperCase()}`;
+  }
+
+  async function loadCatastropheRadar(){
+    try{
+      const r=await fetch('/api/catastrophe',{headers:{accept:'application/json'},cache:'no-store'});
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      renderRadar(await r.json());
+    }catch(error){
+      const label=document.getElementById('radarGlobalLabel');
+      if(label) label.textContent='SOURCE DEGRADED — risk state not inferred';
+      const fresh=document.getElementById('radarFreshness');
+      if(fresh) fresh.textContent='Radar API unavailable · missing data is UNKNOWN';
+    }
+  }
+  loadCatastropheRadar();
+  setInterval(loadCatastropheRadar, 60000);
+})();

@@ -653,3 +653,59 @@ footer{padding-top:14px}
   .event-thumb-wrap{width:58px;height:58px}
   .map-live-stats{left:18px;right:18px;max-width:none;justify-content:flex-start}
 }
+
+
+/* Global Anomaly Radar v1 */
+.catastrophe-radar{
+  margin:8px 0 9px;padding:14px;border:1px solid #e4d7d4;border-radius:18px;
+  background:
+    radial-gradient(circle at 88% 8%,rgba(130,91,211,.12),transparent 30%),
+    radial-gradient(circle at 8% 0%,rgba(239,91,123,.10),transparent 28%),
+    linear-gradient(145deg,#fffaf7,#fbf5fb 54%,#f8f6ff);
+  box-shadow:0 12px 34px rgba(88,57,75,.09);position:relative;overflow:hidden
+}
+.catastrophe-radar:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(120,92,121,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(120,92,121,.035) 1px,transparent 1px);
+  background-size:28px 28px;mask-image:linear-gradient(to bottom,#000,transparent 75%)
+}
+.radar-head{display:grid;grid-template-columns:minmax(0,1fr) 170px 190px;gap:10px;position:relative;z-index:1}
+.radar-head h2{margin:3px 0 4px;font-size:24px;letter-spacing:-.035em;color:#302a3a}
+.radar-head p{margin:0;max-width:780px;color:#776b76;font-size:10px;line-height:1.55}
+.radar-global,.radar-index{
+  border:1px solid rgba(219,203,211,.9);background:rgba(255,255,255,.74);
+  border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center
+}
+.radar-global>span,.radar-index>span{font-size:7px;letter-spacing:.12em;font-weight:900;color:#9a8794}
+.radar-global>strong{font-size:29px;line-height:1;margin:6px 0 3px}
+.radar-global>small,.radar-index>em{font-size:7px;color:#8d7d89;font-style:normal}
+.radar-index>strong{font-size:27px;line-height:1;color:#4b3b54;margin:5px 0 3px}
+.radar-index>strong small{font-size:9px;color:#9e9099}
+.radar-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:10px;position:relative;z-index:1}
+.radar-module{
+  min-height:82px;border:1px solid #eadfdf;border-radius:13px;padding:9px;
+  background:rgba(255,255,255,.72);display:grid;grid-template-columns:32px 1fr;gap:8px;align-items:center;
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease
+}
+.radar-module:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(83,57,75,.08)}
+.radar-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#f3eaf0;color:#69576f;font-size:18px}
+.radar-module small{display:block;font-size:6.5px;letter-spacing:.08em;font-weight:900;color:#988894}
+.radar-module strong{display:block;font-size:18px;line-height:1.05;margin:3px 0;color:#4b4450}
+.radar-module p{margin:0;font-size:7.3px;line-height:1.3;color:#897a85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.radar-bottom{display:grid;grid-template-columns:1.2fr .8fr;gap:7px;margin-top:7px;position:relative;z-index:1}
+.radar-signals,.radar-firewall{border:1px solid #eadfdf;background:rgba(255,255,255,.65);border-radius:13px;padding:9px}
+.radar-subtitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.radar-subtitle span{font-size:7px;letter-spacing:.11em;font-weight:900;color:#8d7e8a}
+.radar-subtitle b{font-size:8px;color:#4f4354}
+.radar-signal-list{display:grid;gap:5px}
+.radar-signal{display:grid;grid-template-columns:34px 1fr 28px;gap:6px;align-items:center;border-radius:9px;padding:6px;background:#fff9f7;border:1px solid #efe4e1}
+.radar-signal>b{font-size:8px}.radar-signal div{min-width:0;display:flex;flex-direction:column}.radar-signal div strong{font-size:8.5px}.radar-signal div small{font-size:7px;color:#8f8089;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.radar-signal em{text-align:right;font-style:normal;font-weight:900;font-size:10px}
+.radar-empty{font-size:8px;color:#8f828b;padding:7px 2px}
+.radar-firewall p{margin:0 0 8px;font-size:7.5px;line-height:1.5;color:#82747f}
+.radar-source-health{display:flex;gap:5px;flex-wrap:wrap}.radar-source-health span{display:flex;align-items:center;gap:4px;border:1px solid #e5dadc;border-radius:999px;padding:3px 6px;font-size:6.5px;font-weight:900;background:#fff}.radar-source-health i{width:6px;height:6px;border-radius:50%;background:#b8aaaF}.radar-source-health .ok i{background:#4eaa82}.radar-source-health .bad i{background:#d85969}
+.radar-foot{display:flex;justify-content:space-between;margin-top:7px;padding:0 2px;position:relative;z-index:1;font-size:6.8px;color:#9a8994;text-transform:uppercase;letter-spacing:.05em}
+.level-c0{color:#388f70!important}.level-c1{color:#be8a27!important}.level-c2{color:#d1772f!important}.level-c3{color:#dc5b5b!important}.level-c4{color:#be315c!important}.level-c5{color:#7e245e!important}.level-unknown{color:#8d858c!important}
+.radar-module.level-c1{border-color:#ead5a9}.radar-module.level-c2{border-color:#efc69f}.radar-module.level-c3,.radar-module.level-c4,.radar-module.level-c5{border-color:#efb6bf;background:rgba(255,244,245,.82)}
+@media(max-width:1100px){.radar-head{grid-template-columns:1fr 150px 170px}.radar-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.radar-head{grid-template-columns:1fr 1fr}.radar-head>div:first-child{grid-column:1/-1}.radar-grid{grid-template-columns:1fr 1fr}.radar-bottom{grid-template-columns:1fr}}
+@media(max-width:520px){.radar-grid{grid-template-columns:1fr}.radar-global,.radar-index{min-height:82px}.radar-head h2{font-size:21px}}
