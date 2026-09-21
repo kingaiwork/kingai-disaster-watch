@@ -74,11 +74,15 @@ async function asteroidRadar() {
     else if (nearCentury && ps >= 1) level = 'C4';
     else if (nearCentury && ps >= 0) level = 'C3';
     else if (nearCentury && ps >= -1) level = 'C2';
-    else if (ps >= -1) level = 'C1';
     else if (nearCentury && ps >= -2) level = 'C1';
+    else if (ps >= 0) level = 'C1';
   }
   const urgency = yearsAway == null ? 0 : yearsAway <= 25 ? 20 : yearsAway <= 100 ? 10 : 0;
-  const anomalyScore = top ? clamp(8 + Math.max(0,((top.palermoCumulative ?? -5)+3))*10 + urgency) : 0;
+  const anomalyScore = top
+    ? clamp((yearsAway != null && yearsAway > 100)
+        ? Math.max(0, ((top.palermoCumulative ?? -5) + 2) * 8)
+        : 8 + Math.max(0,((top.palermoCumulative ?? -5)+3))*10 + urgency)
+    : 0;
   return {
     key: 'asteroid',
     title: 'Asteroid impact',
