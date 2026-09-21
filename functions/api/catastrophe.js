@@ -56,6 +56,7 @@ async function asteroidRadar() {
     palermoMax: n(row.ps_max),
     torinoMax: n(row.ts_max),
     encounterRange: row.range || '',
+    earliestEncounterYear: Number((String(row.range || '').match(/\\d{4}/) || [])[0]) || null,
     lastObservation: row.last_obs || ''
   })).filter(x => x.impactProbability != null);
 
@@ -64,15 +65,20 @@ async function asteroidRadar() {
   material.sort((a,b) => (b.palermoCumulative ?? -99) - (a.palermoCumulative ?? -99));
   const top = material[0] || null;
   let level = 'C0';
+  const currentYear = new Date().getUTCFullYear();
+  const yearsAway = top?.earliestEncounterYear ? Math.max(0, top.earliestEncounterYear - currentYear) : null;
   if (top) {
     const ps = top.palermoCumulative ?? -99;
-    if ((top.diameterKm ?? 0) >= 10 && (top.impactProbability ?? 0) > 0 && ps >= 0) level = 'C5';
-    else if (ps >= 1) level = 'C4';
-    else if (ps >= 0) level = 'C3';
-    else if (ps >= -1) level = 'C2';
-    else if (ps >= -2) level = 'C1';
+    const nearCentury = yearsAway != null && yearsAway <= 100;
+    if ((top.diameterKm ?? 0) >= 10 && nearCentury && (top.impactProbability ?? 0) > 0 && ps >= 0) level = 'C5';
+    else if (nearCentury && ps >= 1) level = 'C4';
+    else if (nearCentury && ps >= 0) level = 'C3';
+    else if (nearCentury && ps >= -1) level = 'C2';
+    else if (ps >= -1) level = 'C1';
+    else if (nearCentury && ps >= -2) level = 'C1';
   }
-  const anomalyScore = top ? clamp(15 + Math.max(0,((top.palermoCumulative ?? -5)+3))*18) : 0;
+  const urgency = yearsAway == null ? 0 : yearsAway <= 25 ? 20 : yearsAway <= 100 ? 10 : 0;
+  const anomalyScore = top ? clamp(8 + Math.max(0,((top.palermoCumulative ?? -5)+3))*10 + urgency) : 0;
   return {
     key: 'asteroid',
     title: 'Asteroid impact',
@@ -92,7 +98,8 @@ async function asteroidRadar() {
       `Top material object: ${top.name}`,
       `Diameter estimate: ${top.diameterKm ?? 'unknown'} km`,
       `Impact probability: ${top.impactProbability}`,
-      `Palermo cumulative: ${top.palermoCumulative ?? 'unknown'}`
+      `Palermo cumulative: ${top.palermoCumulative ?? 'unknown'}`,
+      `Potential encounter range: ${top.encounterRange || 'unknown'}`
     ] : ['No >=140 m object was returned by the current Sentry result set.']
   };
 }
@@ -177,19 +184,27 @@ async function volcanoRadar() {
   const volcanoes=[...byVolcano.values()].sort((a,b)=>volcanoRank(b.alertLevel)-volcanoRank(a.alertLevel));
   const elevated=volcanoes.filter(v=>volcanoRank(v.alertLevel)>=1);
   const highest=elevated[0]||volcanoes[0]||null;
-  const r=volcanoRank(highest?.alertLevel);
-  const level=r>=3?'C2':r>=2?'C1':r>=1?'C1':'C0';
+  const highImpactPattern=/yellowstone|long valley|valles caldera|newberry/i;
+  const highImpact=volcanoes.filter(v=>highImpactPattern.test(v.name));
+  const highImpactElevated=highImpact.filter(v=>volcanoRank(v.alertLevel)>=1);
+  const highTop=highImpactElevated.sort((a,b)=>volcanoRank(b.alertLevel)-volcanoRank(a.alertLevel))[0]||null;
+  const r=volcanoRank(highTop?.alertLevel);
+  const level=r>=3?'C3':r>=2?'C2':r>=1?'C1':'C0';
   const yellowstone=volcanoes.find(v=>/yellowstone/i.test(v.name));
   return {
-    key:'volcano', title:'Volcanic escalation', level,
-    anomalyScore:r>=3?62:r>=2?40:r>=1?25:5,
-    confidence:92,reality:'REAL',scope:'USGS-monitored U.S. volcanoes',
-    semantics:'Latest USGS HANS notices. This is unrest/alert-state monitoring, not an eruption-date prediction and not complete global volcano coverage.',
+    key:'volcano', title:'Supervolcano / caldera escalation', level,
+    anomalyScore:r>=3?78:r>=2?52:r>=1?28:0,
+    confidence:92,reality:'REAL',scope:'USGS-monitored U.S. high-impact caldera systems',
+    semantics:'Latest USGS HANS notices are filtered for high-impact caldera escalation. Ordinary active volcanoes do not raise the catastrophe class.',
     elevatedCount:elevated.length,
-    highest:highest ? {name:highest.name,alertLevel:highest.alertLevel,colorCode:highest.colorCode,sentUtc:highest.sentUtc,url:highest.url}:null,
+    highImpactEscalations:highImpactElevated.length,
+    highest:highTop ? {name:highTop.name,alertLevel:highTop.alertLevel,colorCode:highTop.colorCode,sentUtc:highTop.sentUtc,url:highTop.url}:null,
+    operationalHighest:highest ? {name:highest.name,alertLevel:highest.alertLevel,colorCode:highest.colorCode,sentUtc:highest.sentUtc,url:highest.url}:null,
     yellowstoneNotice:yellowstone ? {alertLevel:yellowstone.alertLevel,colorCode:yellowstone.colorCode,sentUtc:yellowstone.sentUtc}:null,
     officialProbability:null,
-    evidence:elevated.length ? elevated.slice(0,4).map(v=>`${v.name}: ${v.alertLevel}/${v.colorCode}`) : ['No elevated volcano notice in the current USGS HANS result set.']
+    evidence:highImpactElevated.length
+      ? highImpactElevated.slice(0,4).map(v=>`${v.name}: ${v.alertLevel}/${v.colorCode}`)
+      : [`No elevated high-impact caldera notice in current USGS HANS results. Operational elevated volcanoes: ${elevated.length}.`]
   };
 }
 
