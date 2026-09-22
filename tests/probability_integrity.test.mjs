@@ -23,3 +23,10 @@ if (asteroid.probabilityFraction != null) {
   assert.equal(asteroid.probabilityPercent, Number((asteroid.probabilityFraction * 100).toPrecision(8)));
 }
 console.log('probability integrity tests passed');
+
+const scout = data?.modules?.asteroid?.scout;
+assert.ok(scout, 'Scout screening payload must exist');
+assert.equal(scout.probability, null, 'Scout screening must never become a probability');
+assert.ok(['number','object'].includes(typeof scout.highestImpactRating));
+assert.equal(data?.probabilityIntegrity?.modules?.asteroid?.scoutScreening?.probability, null);
+console.log('Scout screening probability guard passed');
