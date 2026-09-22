@@ -21,7 +21,8 @@
       <span><strong>KINGAI</strong><small>Disaster Watch</small></span>
     </a>
     <nav class="main-nav" aria-label="Primary navigation">
-      <a class="active" href="#home">Home</a>\n      <a href="#catastrophe-radar">Global Radar</a>
+      <a class="active" href="#home">Home</a>
+      <a href="#catastrophe-radar">Global Radar</a>
       <a href="#live-map">Live Map</a>
       <a href="#hazards">Hazards</a>
       <a href="#forecast">Forecasts</a>
@@ -89,6 +90,48 @@
       <div class="trust-item"><span class="trust-icon green">✓</span><div><strong id="trustCoverage">--</strong><small>Authoritative coverage</small></div></div>
       <div class="source-logos"><span>USGS</span><span>NOAA</span><span>NWS</span><span>SPC</span></div>
       <div class="formula-mini"><strong>EMHSI</strong><small id="formulaMini">Loading formula…</small></div>
+    </section>
+
+
+    <section class="catastrophe-radar" id="catastrophe-radar" aria-label="Global catastrophe anomaly radar">
+      <div class="radar-head">
+        <div>
+          <div class="kicker">GLOBAL ANOMALY RADAR · OFFICIAL PRODUCTION DATA ONLY</div>
+          <h2>Catastrophe Intelligence</h2>
+          <p>Early weak-signal fusion for asteroid impact, megaquakes, tsunami, volcanic escalation, and extreme solar storms. C-levels are escalation classes, not doomsday probabilities.</p>
+        </div>
+        <div class="radar-global">
+          <span>GLOBAL STATUS</span>
+          <strong id="radarGlobalLevel">--</strong>
+          <small id="radarGlobalLabel">Connecting to authoritative sources…</small>
+        </div>
+        <div class="radar-index">
+          <span>CATASTROPHE INDEX</span>
+          <strong><b id="radarIndex">--</b><small>/100</small></strong>
+          <em>Operational escalation · not probability</em>
+        </div>
+      </div>
+
+      <div class="radar-grid" id="radarGrid">
+        <article class="radar-module" data-radar="asteroid"><span class="radar-icon">☄</span><div><small>ASTEROID IMPACT</small><strong>--</strong><p>NASA/JPL Sentry</p></div></article>
+        <article class="radar-module" data-radar="megaquake"><span class="radar-icon">◉</span><div><small>MEGAQUAKE</small><strong>--</strong><p>USGS global seismicity</p></div></article>
+        <article class="radar-module" data-radar="tsunami"><span class="radar-icon">≈</span><div><small>MEGA-TSUNAMI</small><strong>--</strong><p>NOAA warning centers</p></div></article>
+        <article class="radar-module" data-radar="volcano"><span class="radar-icon">△</span><div><small>CALDERA ESCALATION</small><strong>--</strong><p>USGS HANS</p></div></article>
+        <article class="radar-module" data-radar="solar"><span class="radar-icon">☼</span><div><small>EXTREME SOLAR</small><strong>--</strong><p>NOAA SWPC</p></div></article>
+      </div>
+
+      <div class="radar-bottom">
+        <div class="radar-signals">
+          <div class="radar-subtitle"><span>EARLY WEAK SIGNALS</span><b id="radarSignalCount">--</b></div>
+          <div id="radarSignals" class="radar-signal-list"><span class="radar-empty">Synchronizing…</span></div>
+        </div>
+        <div class="radar-firewall">
+          <div class="radar-subtitle"><span>REALITY FIREWALL</span><b>ON</b></div>
+          <p>REAL official production feeds may change risk state. Scenario, exercise, simulation, research scenario, and unverified social claims are blocked.</p>
+          <div id="radarSourceHealth" class="radar-source-health"></div>
+        </div>
+      </div>
+      <div class="radar-foot"><span id="radarFreshness">Waiting for first fusion…</span><span id="radarCoverage">Coverage --</span></div>
     </section>
 
     <section class="score-ribbon" id="forecast" aria-label="Current and projected scores">
