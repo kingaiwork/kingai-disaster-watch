@@ -62,10 +62,23 @@ async function asteroidRadar() {
 
   const material = parsed.filter(x => (x.diameterKm ?? 0) >= 0.14);
   const civilization = parsed.filter(x => (x.diameterKm ?? 0) >= 1);
+  const currentYear = new Date().getUTCFullYear();
+  const within100Years = material.filter(x =>
+    x.earliestEncounterYear != null &&
+    x.earliestEncounterYear >= currentYear &&
+    x.earliestEncounterYear <= currentYear + 100
+  );
+  const civilizationWithin100Years = civilization.filter(x =>
+    x.earliestEncounterYear != null &&
+    x.earliestEncounterYear >= currentYear &&
+    x.earliestEncounterYear <= currentYear + 100
+  );
+  const highestProbabilityWithin100Years = [...within100Years]
+    .filter(x => x.impactProbability != null)
+    .sort((a,b) => (b.impactProbability ?? 0) - (a.impactProbability ?? 0))[0] || null;
   material.sort((a,b) => (b.palermoCumulative ?? -99) - (a.palermoCumulative ?? -99));
   const top = material[0] || null;
   let level = 'C0';
-  const currentYear = new Date().getUTCFullYear();
   const yearsAway = top?.earliestEncounterYear ? Math.max(0, top.earliestEncounterYear - currentYear) : null;
   if (top) {
     const ps = top.palermoCumulative ?? -99;
@@ -95,8 +108,12 @@ async function asteroidRadar() {
     trackedObjects: parsed.length,
     materialObjects: material.length,
     civilizationScaleObjects: civilization.length,
+    knownMaterialCandidatesWithin100Years: within100Years.length,
+    knownCivilizationScaleCandidatesWithin100Years: civilizationWithin100Years.length,
+    maxOfficialImpactProbabilityWithin100Years: highestProbabilityWithin100Years?.impactProbability ?? null,
+    maxOfficialImpactProbabilityObjectWithin100Years: highestProbabilityWithin100Years,
     officialProbability: top?.impactProbability ?? null,
-    probabilityUnit: top ? 'fraction for highest-ranked material Sentry object' : null,
+    probabilityUnit: top ? 'fraction for highest-ranked material Sentry object; object-specific, not a global impact probability' : null,
     topCandidate: top,
     evidence: top ? [
       `Top material object: ${top.name}`,
@@ -267,6 +284,60 @@ async function solarRadar() {
   };
 }
 
+function buildProbabilityIntegrity(modules) {
+  const asteroid = modules?.asteroid || {};
+  const p100 = n(asteroid.maxOfficialImpactProbabilityWithin100Years);
+  return {
+    singleGlobalDoomsdayProbability: null,
+    globalStatus: 'NOT_SCIENTIFICALLY_DEFINED',
+    explanation: 'A single global doomsday percentage is not scientifically defensible across unrelated hazards and time horizons.',
+    rules: [
+      'Only authoritative numeric probabilities are exposed as probabilities.',
+      'Operational C0-C5 classes and Catastrophe Index are not probabilities.',
+      'Long-term background rates are not converted into short-term event forecasts.',
+      'Regional catastrophe probability is never relabeled as human-extinction probability.'
+    ],
+    modules: {
+      asteroid: {
+        status: p100 == null ? 'NO_MATERIAL_100Y_OBJECT_PROBABILITY' : 'OFFICIAL_OBJECT_SPECIFIC_PROBABILITY',
+        horizon: '100 years',
+        threshold: '>=140 m estimated diameter',
+        probabilityFraction: p100,
+        probabilityPercent: p100 == null ? null : Number((p100 * 100).toPrecision(8)),
+        candidateCount: Number(asteroid.knownMaterialCandidatesWithin100Years || 0),
+        civilizationScaleCandidateCount: Number(asteroid.knownCivilizationScaleCandidatesWithin100Years || 0),
+        object: asteroid.maxOfficialImpactProbabilityObjectWithin100Years || null,
+        source: 'NASA/JPL Sentry',
+        caveat: 'This is the highest object-specific Sentry impact probability among returned >=140 m candidates with an encounter inside 100 years. It is not the total probability that any asteroid will hit Earth.'
+      },
+      megaquake: {
+        status: 'NO_RELIABLE_SHORT_TERM_PROBABILITY',
+        probability: null,
+        source: 'USGS',
+        caveat: 'Observed seismicity and long-term tectonic hazard do not provide a scientifically reliable exact short-term earthquake probability for a specific megaquake.'
+      },
+      tsunami: {
+        status: 'EVENT_DRIVEN',
+        probability: null,
+        source: 'NOAA / U.S. Tsunami Warning System',
+        caveat: 'Tsunami threat is evaluated after a source event using official warnings, observations and models; no generic doomsday probability is invented.'
+      },
+      volcano: {
+        status: 'NO_RELIABLE_EXACT_ERUPTION_DATE_PROBABILITY',
+        probability: null,
+        source: 'USGS HANS',
+        caveat: 'Alert levels and monitoring anomalies are operational evidence, not an exact eruption-date probability.'
+      },
+      solar: {
+        status: 'OPERATIONAL_FORECAST_NOT_CIVILIZATION_PROBABILITY',
+        probability: null,
+        source: 'NOAA SWPC',
+        caveat: 'Kp, G-scale, CME and solar-wind forecasts are not converted into an unsupported civilization-collapse probability.'
+      }
+    }
+  };
+}
+
 export async function onRequestGet() {
   const generatedAt=new Date().toISOString();
   const tasks={asteroid:asteroidRadar,megaquake:megaquakeRadar,tsunami:tsunamiRadar,volcano:volcanoRadar,solar:solarRadar};
@@ -298,6 +369,8 @@ export async function onRequestGet() {
     .sort((a,b)=>(LEVEL_INDEX[b.level]-LEVEL_INDEX[a.level])||((b.anomalyScore||0)-(a.anomalyScore||0)))
     .map(x=>({key:x.key,title:x.title,level:x.level,anomalyScore:x.anomalyScore,evidence:x.evidence?.slice(0,2)||[]}));
 
+  const probabilityIntegrity = buildProbabilityIntegrity(modules);
+
   const payload={
     generatedAt,
     model:{
@@ -316,6 +389,7 @@ export async function onRequestGet() {
       unavailableModules:unavailable
     },
     modules,
+    probabilityIntegrity,
     weakSignals,
     sources,
     realityFirewall:{
@@ -329,7 +403,8 @@ export async function onRequestGet() {
       'C0-C5 is an escalation class, not an occurrence probability.',
       'Regional catastrophes and civilization-level threats are kept semantically distinct.',
       'Missing data is UNKNOWN/DEGRADED, never silently SAFE.',
-      'Earthquake and eruption dates are not deterministically predicted.'
+      'Earthquake and eruption dates are not deterministically predicted.',
+      'No cross-hazard single doomsday probability is fabricated.'
     ],
     levelDefinitions:{
       C0:'Baseline — no material anomaly in available authoritative evidence',
