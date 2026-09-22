@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public",
-    "test": "node tests/tsunami_parser.test.mjs && node tests/prediction.test.mjs",
+    "test": "node tests/tsunami_parser.test.mjs && node tests/prediction.test.mjs && node tests/static_contract.test.mjs",
     "deploy": "wrangler pages deploy public --project-name=kingai-disaster-watch"
   },
   "devDependencies": {
