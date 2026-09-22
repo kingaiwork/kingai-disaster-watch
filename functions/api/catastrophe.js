@@ -45,8 +45,27 @@ function sourceMeta(ok, started, extra={}) {
 function truthyLevel(x) { return LEVELS.includes(x) ? x : 'C0'; }
 
 async function asteroidRadar() {
-  const payload = await fetchJson('https://ssd-api.jpl.nasa.gov/sentry.api', { cacheTtl: 300 });
+  const [payload, scoutResult] = await Promise.all([
+    fetchJson('https://ssd-api.jpl.nasa.gov/sentry.api', { cacheTtl: 300 }),
+    fetchJson('https://ssd-api.jpl.nasa.gov/scout.api', { cacheTtl: 60 })
+      .then(data => ({ ok:true, data }))
+      .catch(error => ({ ok:false, error:String(error?.message || error) }))
+  ]);
   const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const scoutRows = Array.isArray(scoutResult?.data?.data) ? scoutResult.data.data : [];
+  const scoutCandidates = scoutRows.map(row => ({
+    objectName: row.objectName || '',
+    impactRating: n(row.rating),
+    neoScore: n(row.neoScore),
+    phaScore: n(row.phaScore),
+    geocentricScore: n(row.geocentricScore),
+    absoluteMagnitudeH: n(row.H),
+    observationArcHours: n(row.arc),
+    observationCount: n(row.nObs),
+    lastRun: row.lastRun || ''
+  })).sort((a,b)=>(b.impactRating ?? -1)-(a.impactRating ?? -1));
+  const scoutTop = scoutCandidates[0] || null;
+  const scoutRating = scoutTop?.impactRating ?? 0;
   const parsed = rows.map(row => ({
     id: row.id || row.des || '',
     name: row.fullname || row.des || row.id || 'Unknown object',
@@ -90,21 +109,26 @@ async function asteroidRadar() {
     else if (nearCentury && ps >= -2) level = 'C1';
     else if (ps >= 0) level = 'C1';
   }
+  const sentryLevel = level;
+  if (sentryLevel === 'C0' && scoutRating >= 4) level = 'C1';
   const urgency = yearsAway == null ? 0 : yearsAway <= 25 ? 20 : yearsAway <= 100 ? 10 : 0;
-  const anomalyScore = top
+  const sentryScore = top
     ? clamp((yearsAway != null && yearsAway > 100)
         ? Math.max(0, ((top.palermoCumulative ?? -5) + 2) * 8)
         : 8 + Math.max(0,((top.palermoCumulative ?? -5)+3))*10 + urgency)
     : 0;
+  const scoutScore = scoutRating >= 4 ? 30 : scoutRating >= 3 ? 18 : scoutRating >= 2 ? 8 : 0;
+  const anomalyScore = Math.max(sentryScore, scoutScore);
+  const scoutDriven = sentryLevel === 'C0' && level === 'C1';
   return {
     key: 'asteroid',
     title: 'Asteroid impact',
     level,
     anomalyScore,
-    confidence: 98,
-    reality: 'REAL',
+    confidence: scoutDriven ? 65 : 98,
+    reality: scoutDriven ? 'REAL_UNCONFIRMED' : 'REAL',
     scope: 'Global',
-    semantics: 'NASA/JPL Sentry production impact-monitoring results. Palermo scale drives escalation; raw probability alone does not.',
+    semantics: 'NASA/JPL Sentry provides rigorous long-term impact monitoring. Scout adds near-real-time screening of unconfirmed NEOCP objects; Scout ratings are not probabilities and can only create a C1 watch.',
     trackedObjects: parsed.length,
     materialObjects: material.length,
     civilizationScaleObjects: civilization.length,
@@ -115,13 +139,29 @@ async function asteroidRadar() {
     officialProbability: top?.impactProbability ?? null,
     probabilityUnit: top ? 'fraction for highest-ranked material Sentry object; object-specific, not a global impact probability' : null,
     topCandidate: top,
-    evidence: top ? [
-      `Top material object: ${top.name}`,
-      `Diameter estimate: ${top.diameterKm ?? 'unknown'} km`,
-      `Impact probability: ${top.impactProbability}`,
-      `Palermo cumulative: ${top.palermoCumulative ?? 'unknown'}`,
-      `Potential encounter range: ${top.encounterRange || 'unknown'}`
-    ] : ['No >=140 m object was returned by the current Sentry result set.']
+    scout: {
+      ok: Boolean(scoutResult?.ok),
+      count: scoutResult?.ok ? Number(scoutResult?.data?.count || scoutCandidates.length || 0) : null,
+      signatureVersion: scoutResult?.data?.signature?.version || null,
+      highestImpactRating: scoutTop?.impactRating ?? null,
+      highestCandidate: scoutTop,
+      watch: scoutRating >= 3,
+      c1Triggered: scoutDriven,
+      probability: null,
+      caveat: 'Scout analyzes unconfirmed NEOCP objects with short observational arcs. Impact Rating is a screening score, not a rigorous impact probability.'
+    },
+    evidence: [
+      ...(top ? [
+        `Top material Sentry object: ${top.name}`,
+        `Diameter estimate: ${top.diameterKm ?? 'unknown'} km`,
+        `Impact probability: ${top.impactProbability}`,
+        `Palermo cumulative: ${top.palermoCumulative ?? 'unknown'}`,
+        `Potential encounter range: ${top.encounterRange || 'unknown'}`
+      ] : ['No >=140 m object was returned by the current Sentry result set.']),
+      ...(scoutResult?.ok
+        ? [`Scout highest impact rating: ${scoutRating} (${scoutTop?.objectName || 'none'}) — screening only, not probability`]
+        : [`Scout unavailable: ${scoutResult?.error || 'unknown error'}`])
+    ]
   };
 }
 
@@ -308,7 +348,14 @@ function buildProbabilityIntegrity(modules) {
         civilizationScaleCandidateCount: Number(asteroid.knownCivilizationScaleCandidatesWithin100Years || 0),
         object: asteroid.maxOfficialImpactProbabilityObjectWithin100Years || null,
         source: 'NASA/JPL Sentry',
-        caveat: 'This is the highest object-specific Sentry impact probability among returned >=140 m candidates with an encounter inside 100 years. It is not the total probability that any asteroid will hit Earth.'
+        caveat: 'This is the highest object-specific Sentry impact probability among returned >=140 m candidates with an encounter inside 100 years. It is not the total probability that any asteroid will hit Earth. Scout screening ratings are intentionally excluded from probability values.',
+        scoutScreening: {
+          status: asteroid?.scout?.ok ? 'AVAILABLE_UNCONFIRMED_SCREENING' : 'UNAVAILABLE',
+          highestImpactRating: asteroid?.scout?.highestImpactRating ?? null,
+          watch: Boolean(asteroid?.scout?.watch),
+          probability: null,
+          caveat: asteroid?.scout?.caveat || 'Scout is screening evidence, not probability.'
+        }
       },
       megaquake: {
         status: 'NO_RELIABLE_SHORT_TERM_PROBABILITY',
@@ -404,7 +451,8 @@ export async function onRequestGet() {
       'Regional catastrophes and civilization-level threats are kept semantically distinct.',
       'Missing data is UNKNOWN/DEGRADED, never silently SAFE.',
       'Earthquake and eruption dates are not deterministically predicted.',
-      'No cross-hazard single doomsday probability is fabricated.'
+      'No cross-hazard single doomsday probability is fabricated.',
+      'NASA Scout impact ratings are treated as unconfirmed screening evidence, never as impact probability.'
     ],
     levelDefinitions:{
       C0:'Baseline — no material anomaly in available authoritative evidence',
