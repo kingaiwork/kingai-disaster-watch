@@ -278,48 +278,103 @@ function maxGScale(items) {
   return max;
 }
 async function solarRadar() {
-  const [alerts,kpSeries,magSummary,speedSummary] = await Promise.all([
+  const [alerts,kpSeries,magSummary,speedSummary,enlilSeries] = await Promise.all([
     fetchJson('https://services.swpc.noaa.gov/products/alerts.json'),
     fetchJson('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json'),
     fetchJson('https://services.swpc.noaa.gov/products/summary/solar-wind-mag-field.json'),
-    fetchJson('https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json')
+    fetchJson('https://services.swpc.noaa.gov/products/summary/solar-wind-speed.json'),
+    fetchJson('https://services.swpc.noaa.gov/json/enlil_time_series.json', { cacheTtl: 300 })
   ]);
   const now=Date.now();
+  const parseTime=(value)=>{
+    if(!value) return NaN;
+    const text=String(value);
+    return Date.parse(/(?:Z|[+-]\d\d:?\d\d)$/.test(text)?text:text+'Z');
+  };
   const relevantKp=(kpSeries||[]).filter(x=>{
-    const t=Date.parse((x.time_tag||'')+(String(x.time_tag||'').endsWith('Z')?'':'Z'));
+    const t=parseTime(x.time_tag);
     return Number.isFinite(t) && t>=now-6*HOUR && t<=now+24*HOUR;
   });
+  const forecastKp72=(kpSeries||[]).filter(x=>{
+    const t=parseTime(x.time_tag);
+    return Number.isFinite(t) && t>=now && t<=now+72*HOUR && String(x.observed||'').toLowerCase()==='predicted';
+  });
   const maxKp=relevantKp.reduce((m,x)=>Math.max(m,n(x.kp)??0),0);
+  const maxForecastKp72=forecastKp72.reduce((m,x)=>Math.max(m,n(x.kp)??0),0);
+  const forecastG72=maxGScale(forecastKp72);
+  const peakKpForecast=[...forecastKp72].sort((a,b)=>(n(b.kp)??-1)-(n(a.kp)??-1))[0]||null;
+
+  const enlil72=(enlilSeries||[]).filter(x=>{
+    const t=parseTime(x.time_tag);
+    return Number.isFinite(t) && t>=now && t<=now+72*HOUR;
+  });
+  const peakEnlilSpeed=[...enlil72].sort((a,b)=>(n(b.v_r)??-1)-(n(a.v_r)??-1))[0]||null;
+  const peakEnlilDensity=[...enlil72].sort((a,b)=>(n(b.earth_particles_per_cm3)??-1)-(n(a.earth_particles_per_cm3)??-1))[0]||null;
+  const maxEnlilSpeed=n(peakEnlilSpeed?.v_r);
+  const maxEnlilDensity=n(peakEnlilDensity?.earth_particles_per_cm3);
+
   const gScale=maxGScale(relevantKp);
   const recentAlerts=(alerts||[]).filter(x=>{
     const t=Date.parse(String(x.issue_datetime||'').replace(' ','T')+'Z');
-    return Number.isFinite(t) && t>=now-24*HOUR;
+    return Number.isFinite(t) && t>=now-7*24*HOUR;
   });
   const alertG=maxGScale(recentAlerts);
   const bz=n(magSummary?.[0]?.bz_gsm);
   const bt=n(magSummary?.[0]?.bt);
   const speed=n(speedSummary?.[0]?.proton_speed);
+
   const compound = (speed??0)>=900 && (bz??0)<=-15;
   const extremeCompound = (speed??0)>=1400 && (bz??0)<=-25 && maxKp>=9;
+  const forecastExtremeCompound =
+    maxForecastKp72>=8 &&
+    (maxEnlilSpeed??0)>=900;
+
   let level='C0';
   if (extremeCompound) level='C3';
   else if (compound && maxKp>=8) level='C2';
+  else if (forecastExtremeCompound) level='C1';
   else if (Math.max(gScale,alertG)>=3 || maxKp>=7 || ((speed??0)>=700 && (bz??0)<=-10)) level='C1';
-  const anomalyScore=clamp(
+
+  const observedScore=
     Math.max(0,(maxKp-4)*10) +
     Math.max(0,((speed??300)-450)/20) +
-    Math.max(0,-(bz??0))*1.4
-  );
+    Math.max(0,-(bz??0))*1.4;
+  const forecastScore=
+    Math.max(0,(maxForecastKp72-5)*7) +
+    Math.max(0,((maxEnlilSpeed??350)-500)/30);
+  const anomalyScore=clamp(Math.max(observedScore,forecastExtremeCompound?Math.max(25,forecastScore):0));
+
   return {
-    key:'solar',title:'Extreme solar storm',level,anomalyScore,confidence:94,reality:'REAL',scope:'Earth space-weather environment',
-    semantics:'NOAA SWPC operational measurements/forecasts. G5 by itself is not labeled a civilization-ending Carrington event.',
-    maxKp24h:Number(maxKp.toFixed(2)), noaaGScale:Math.max(gScale,alertG), bzGsmNt:bz, btNt:bt, solarWindKms:speed,
-    compoundExtremeSignal:compound, officialProbability:null,
+    key:'solar',title:'Extreme solar storm',level,anomalyScore,
+    confidence:forecastExtremeCompound && !compound ? 78 : 94,
+    reality:'REAL',scope:'Earth space-weather environment',
+    semantics:'NOAA SWPC operational measurements and forecasts. G-scale alone is not labeled a civilization catastrophe. 72h early warning requires compound forecast evidence.',
+    maxKp24h:Number(maxKp.toFixed(2)),
+    noaaGScale:Math.max(gScale,alertG),
+    bzGsmNt:bz,btNt:bt,solarWindKms:speed,
+    compoundExtremeSignal:compound,
+    forecast72h:{
+      horizonHours:72,
+      maxPredictedKp:Number(maxForecastKp72.toFixed(2)),
+      maxPredictedGScale:forecastG72,
+      peakKpTime:peakKpForecast?.time_tag||null,
+      maxEnlilSpeedKms:maxEnlilSpeed,
+      peakEnlilSpeedTime:peakEnlilSpeed?.time_tag||null,
+      maxEnlilDensityPerCm3:maxEnlilDensity,
+      peakEnlilDensityTime:peakEnlilDensity?.time_tag||null,
+      extremeCompoundPreSignal:forecastExtremeCompound,
+      interpretation:forecastExtremeCompound
+        ? 'Compound extreme pre-signal: predicted Kp >=8 and ENLIL solar-wind speed >=900 km/s.'
+        : 'No compound civilization-scale solar pre-signal. Ordinary G1-G3 forecasts remain context only.'
+    },
+    officialProbability:null,
     evidence:[
-      `Max observed/forecast Kp in analysis window: ${maxKp.toFixed(2)}`,
+      `Max observed/near-term Kp: ${maxKp.toFixed(2)}`,
       `Solar wind: ${speed ?? 'unknown'} km/s`,
       `Bz GSM: ${bz ?? 'unknown'} nT`,
-      `NOAA G-scale evidence: G${Math.max(gScale,alertG)}`
+      `NOAA operational G-scale evidence: G${Math.max(gScale,alertG)}`,
+      `72h predicted Kp max: ${maxForecastKp72.toFixed(2)} (G${forecastG72})`,
+      `72h ENLIL speed max: ${maxEnlilSpeed ?? 'unknown'} km/s`
     ]
   };
 }
@@ -379,7 +434,8 @@ function buildProbabilityIntegrity(modules) {
         status: 'OPERATIONAL_FORECAST_NOT_CIVILIZATION_PROBABILITY',
         probability: null,
         source: 'NOAA SWPC',
-        caveat: 'Kp, G-scale, CME and solar-wind forecasts are not converted into an unsupported civilization-collapse probability.'
+        caveat: 'Kp, G-scale, CME and solar-wind forecasts are not converted into an unsupported civilization-collapse probability.',
+        forecast72h: modules?.solar?.forecast72h || null
       }
     }
   };
