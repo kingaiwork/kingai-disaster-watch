@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const html = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
+const middleware = fs.readFileSync(new URL('../functions/_middleware.js', import.meta.url), 'utf8');
 
 assert.match(html, /id="catastrophe-radar"/);
 assert.match(html, /href="#catastrophe-radar">Global Radar<\/a>/);
