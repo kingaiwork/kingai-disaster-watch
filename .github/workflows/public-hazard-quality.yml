@@ -1,0 +1,44 @@
+name: Public Hazard Quality
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/**'
+      - 'functions/**'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/public-hazard-quality.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hazard-public-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout pinned source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Validate public client and hazard forecast contracts
+        run: |
+          node --check public/app.js
+          node --check functions/_middleware.js
+          npm test
+      - name: Enforce public safety language
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'Official emergency instructions always take precedence' public/index.html
+          grep -q 'Current severity' public/index.html
