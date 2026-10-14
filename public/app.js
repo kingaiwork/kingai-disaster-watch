@@ -95,9 +95,19 @@ function bindMapViews() {
   });
 }
 
+function scoreOrNaN(value) {
+  if (value == null || typeof value === 'boolean' || (typeof value === 'string' && !value.trim())) return NaN;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : NaN;
+}
+function confidenceOrNaN(value) {
+  if (value == null || typeof value === 'boolean' || (typeof value === 'string' && !value.trim())) return NaN;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : NaN;
+}
 function band(score) {
-  if (!Number.isFinite(Number(score))) return 'Unknown';
-  const s = Number(score);
+  const s = scoreOrNaN(score);
+  if (!Number.isFinite(s)) return 'Unknown';
   if (s >= 85) return 'Extreme';
   if (s >= 65) return 'High';
   if (s >= 40) return 'Elevated';
@@ -140,7 +150,7 @@ function popup(title, lines) {
 }
 
 function sparkline(values, stroke='#e85d8c', fill='rgba(232,93,140,.12)') {
-  const xs = values.map(Number).filter(Number.isFinite);
+  const xs = values.map(scoreOrNaN).filter(Number.isFinite);
   if (!xs.length) return '';
   const w=120,h=44,p=4,min=Math.min(...xs),max=Math.max(...xs),span=Math.max(1,max-min);
   const pts = xs.map((v,i) => [p + i*(w-2*p)/Math.max(1,xs.length-1), h-p-(v-min)*(h-2*p)/span]);
@@ -152,8 +162,10 @@ function sparkline(values, stroke='#e85d8c', fill='rgba(232,93,140,.12)') {
 function renderBars(values) {
   const box = byId('currentBars');
   if (!box) return;
-  const clean = values.map(v => Number.isFinite(Number(v)) ? Number(v) : 0);
-  box.innerHTML = clean.map(v => `<i style="height:${Math.max(6,Math.min(34,6+v*.28))}px"></i>`).join('');
+  const clean = values.map(scoreOrNaN);
+  box.innerHTML = clean.map(v => Number.isFinite(v)
+    ? `<i style="height:${Math.max(6,Math.min(34,6+v*.28))}px"></i>`
+    : '<i aria-label="Data unavailable" style="height:0"></i>').join('');
 }
 
 function projections(data) {
@@ -161,14 +173,14 @@ function projections(data) {
 }
 
 function hazardProjectedSeries(data, key) {
-  const current = Number(data[key]?.score);
+  const current = scoreOrNaN(data[key]?.score);
   const hs = projections(data);
-  return [current, ...[6,24,72].map(h => Number(hs.find(x=>x.hours===h)?.hazards?.[key]?.score))].filter(Number.isFinite);
+  return [current, ...[6,24,72].map(h => scoreOrNaN(hs.find(x=>x.hours===h)?.hazards?.[key]?.score))].filter(Number.isFinite);
 }
 
 function setHazard(prefix, key, data, meta) {
   const hazard = data[key] || {};
-  const score = Number(hazard.score);
+  const score = scoreOrNaN(hazard.score);
   byId(prefix+'Score').textContent = Number.isFinite(score) ? Math.round(score) : '--';
   byId(prefix+'Band').textContent = band(score);
   byId(prefix+'Detail').textContent = hazard.detail || 'Authoritative source unavailable';
@@ -178,30 +190,34 @@ function setHazard(prefix, key, data, meta) {
 }
 
 function renderTop(data) {
-  const score = Number(data.index?.score);
+  const score = scoreOrNaN(data.index?.score);
   byId('overallScore').textContent = Number.isFinite(score) ? Math.round(score) : '--';
   byId('overallLabel').textContent = scoreLabel(score);
 
   const hs = projections(data);
   for (const h of [6,24,72]) {
     const p = hs.find(x=>x.hours===h);
-    byId('score'+h).textContent = Number.isFinite(Number(p?.score)) ? Math.round(p.score) : '--';
+    const projected = scoreOrNaN(p?.score);
+    byId('score'+h).textContent = Number.isFinite(projected) ? Math.round(projected) : '--';
     byId('trend'+h).textContent = p ? humanTrend(p.trend) : '--';
-    byId('spark'+h).innerHTML = sparkline([score, Number(p?.score)].filter(Number.isFinite), h===6?'#e85d8c':h===24?'#d5933e':'#9a56c2', 'rgba(213,93,160,.1)');
+    byId('spark'+h).innerHTML = sparkline([score, scoreOrNaN(p?.score)].filter(Number.isFinite), h===6?'#e85d8c':h===24?'#d5933e':'#9a56c2', 'rgba(213,93,160,.1)');
   }
 
-  const conf = Number(data.index?.sourceConfidence);
-  const pct = Number.isFinite(conf) ? Math.round(conf*100) : 0;
+  const conf = confidenceOrNaN(data.index?.sourceConfidence);
+  const pct = Number.isFinite(conf) ? Math.round(conf*100) : null;
   byId('confidenceValue').textContent = Number.isFinite(conf) ? pct+'%' : '--';
   byId('confidenceText').textContent = Number.isFinite(conf) ? pct+'%' : '--';
-  byId('confidenceDonut').style.setProperty('--p',pct+'%');
+  byId('confidenceDonut').style.setProperty('--p',(pct ?? 0)+'%');
   byId('qualityText').textContent = data.index?.quality || 'unknown';
   byId('modelValue').textContent = data.index?.model || '--';
   byId('modelChip').textContent = data.prediction?.model?.version || '--';
   byId('projectionModel').textContent = `${data.prediction?.model?.name || 'Projection model'} · ${data.prediction?.model?.status || ''}`;
 
   const unknown = data.index?.unknownHazards || [];
-  byId('systemStatus').textContent = unknown.length ? `${unknown.length} source family degraded` : 'All Sources Operational';
+  const missingScores = ['earthquake','tsunami','volcano','tornado'].filter(key=>!Number.isFinite(scoreOrNaN(data[key]?.score)));
+  byId('systemStatus').textContent = unknown.length
+    ? `${unknown.length} source family degraded`
+    : missingScores.length || !Number.isFinite(score) ? 'Source coverage incomplete' : 'All Sources Operational';
   byId('trustCoverage').textContent = Number.isFinite(conf) ? pct+'%' : '--';
 
   const latencies = Object.values(data.sources||{}).map(x=>Number(x?.latencyMs)).filter(Number.isFinite);
@@ -213,11 +229,13 @@ function renderTop(data) {
     + (data.volcano?.volcanoes||[]).length
     + (data.tornado?.alerts||[]).length;
   byId('trustEvents').textContent = evidenceCount;
-  byId('heroLiveSummary').textContent = `${evidenceCount} evidence items · ${pct}% source coverage`;
+  byId('heroLiveSummary').textContent = `${evidenceCount} evidence items · ${pct==null?'unknown':pct+'%'} source coverage`;
   byId('formulaMini').textContent = data.index?.formula || 'Transparent versioned aggregation';
 
-  const generated = data.generatedAt ? new Date(data.generatedAt) : new Date();
-  byId('freshness').textContent = `Updated ${generated.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`;
+  const generated = data.generatedAt ? new Date(data.generatedAt) : null;
+  byId('freshness').textContent = generated && Number.isFinite(generated.getTime())
+    ? `Updated ${generated.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`
+    : 'Source timestamp unavailable';
 
   const bars = [
     data.earthquake?.score,data.tsunami?.score,data.volcano?.score,data.tornado?.score,
@@ -334,23 +352,25 @@ function renderForecast(data) {
   byId('horizonTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{selectedHorizon=+b.dataset.hours;renderForecast(lastData)});
   const h=hs.find(x=>x.hours===selectedHorizon)||hs[0];
   byId('forecastRange').textContent=Array.isArray(h.interval)?`${h.interval[0]} – ${h.interval[1]}`:'--';
-  byId('forecastConfidence').textContent=Number.isFinite(Number(h.confidence))?`${Math.round(h.confidence*100)}%`:'--';
+  const selectedConfidence = confidenceOrNaN(h.confidence);
+  byId('forecastConfidence').textContent=Number.isFinite(selectedConfidence)?`${Math.round(selectedConfidence*100)}%`:'--';
   byId('forecastTrend').textContent=humanTrend(h.trend);
   byId('forecastDrivers').innerHTML=(h.drivers||[]).map((d,i)=>`<span class="driver">#${i+1} ${esc(d.hazard)} <strong>${d.score}</strong></span>`).join('');
 
-  const current=Number(data.index?.score)||0;
-  const points=[{label:'Now',score:current,hours:0},...hs.map(x=>({label:`+${x.hours}h`,score:Number(x.score)||0,hours:x.hours}))];
+  const current=scoreOrNaN(data.index?.score);
+  const points=[{label:'Now',score:current,hours:0},...hs.map(x=>({label:`+${x.hours}h`,score:scoreOrNaN(x.score),hours:x.hours}))];
   const w=560,hg=220,pad=38;
   const x=(i)=>pad+i*(w-pad*2)/(points.length-1);
   const y=(v)=>hg-pad-(Math.max(0,Math.min(100,v))/100)*(hg-pad*2);
   const line=points.map((p,i)=>`${x(i)},${y(p.score)}`).join(' ');
   const area=`M ${x(0)} ${hg-pad} L ${points.map((p,i)=>`${x(i)} ${y(p.score)}`).join(' L ')} L ${x(points.length-1)} ${hg-pad} Z`;
-  const intervalPoints = [{low:current,high:current}, ...hs.map(v=>({low:Number(v.interval?.[0] ?? v.score),high:Number(v.interval?.[1] ?? v.score)}))];
+  const intervalPoints = [{low:current,high:current}, ...hs.map(v=>({low:scoreOrNaN(v.interval?.[0] ?? v.score),high:scoreOrNaN(v.interval?.[1] ?? v.score)}))];
+  const chartReady=points.every(p=>Number.isFinite(p.score)) && intervalPoints.every(p=>Number.isFinite(p.low)&&Number.isFinite(p.high));
   const upper = intervalPoints.map((p,i)=>`${x(i)},${y(p.high)}`).join(' ');
   const lower = intervalPoints.map((p,i)=>`${x(intervalPoints.length-1-i)},${y(intervalPoints[intervalPoints.length-1-i].low)}`).join(' ');
   const bandPath = `M ${upper.replaceAll(' ', ' L ')} L ${lower.replaceAll(' ', ' L ')} Z`;
   const selectedIndex=points.findIndex(p=>p.hours===selectedHorizon);
-  byId('forecastChart').innerHTML=`
+  byId('forecastChart').innerHTML=chartReady ? `
     <defs><linearGradient id="warmFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#eb6394" stop-opacity=".24"/><stop offset="1" stop-color="#d767d4" stop-opacity=".02"/></linearGradient></defs>
     ${[0,25,50,75,100].map(v=>`<line x1="${pad}" x2="${w-pad}" y1="${y(v)}" y2="${y(v)}" stroke="#eadad8" stroke-width="1"/><text x="8" y="${y(v)+4}" font-size="10" fill="#8c7e86">${v}</text>`).join('')}
     <path d="${bandPath}" class="forecast-band"/>
@@ -358,15 +378,16 @@ function renderForecast(data) {
     <polyline points="${line}" fill="none" stroke="#b35dcc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
     ${points.map((pt,i)=>`<circle cx="${x(i)}" cy="${y(pt.score)}" r="${i===selectedIndex?6:4}" fill="#fff" stroke="${i===0?'#ef5e7b':'#b35dcc'}" stroke-width="3"/><text x="${x(i)}" y="${hg-12}" text-anchor="middle" font-size="10" fill="#786d77">${pt.label}</text>`).join('')}
     ${selectedIndex>=0?`<rect x="${x(selectedIndex)-28}" y="${Math.max(10,y(points[selectedIndex].score)-48)}" width="56" height="30" rx="8" fill="#fff" stroke="#e3d3d5"/><text x="${x(selectedIndex)}" y="${Math.max(28,y(points[selectedIndex].score)-29)}" text-anchor="middle" font-size="12" font-weight="800" fill="#3a3040">${points[selectedIndex].score}</text>`:''}
-  `;
+  ` : '<text x="280" y="115" text-anchor="middle" font-size="15" fill="#73666c">Forecast data unavailable · no risk inferred</text>';
   const hazardNames={earthquake:'Earthquake',tsunami:'Tsunami',volcano:'Volcano',tornado:'Tornado'};
   const hazardCodes={earthquake:'EQ',tsunami:'TS',volcano:'VO',tornado:'TO'};
   const grid=byId('forecastHazardGrid');
   if (grid) grid.innerHTML=Object.entries(hazardNames).map(([key,name])=>{
     const p=h.hazards?.[key]||{};
-    const conf=Number.isFinite(Number(p.confidence))?Math.round(Number(p.confidence)*100):null;
+    const confValue=confidenceOrNaN(p.confidence);
+    const conf=Number.isFinite(confValue)?Math.round(confValue*100):null;
     const range=Array.isArray(p.interval)?`${p.interval[0]}–${p.interval[1]}`:'—';
-    return `<div class="forecast-hazard-item"><span class="forecast-code ${key}">${hazardCodes[key]}</span><div><strong>${name}</strong><small>${Number.isFinite(Number(p.score))?p.score:'—'} · ${humanTrend(p.trend)} · ${conf==null?'—':conf+'%'} confidence · range ${range}</small></div></div>`;
+    return `<div class="forecast-hazard-item"><span class="forecast-code ${key}">${hazardCodes[key]}</span><div><strong>${name}</strong><small>${Number.isFinite(scoreOrNaN(p.score))?p.score:'—'} · ${humanTrend(p.trend)} · ${conf==null?'—':conf+'%'} confidence · range ${range}</small></div></div>`;
   }).join('');
 }
 
