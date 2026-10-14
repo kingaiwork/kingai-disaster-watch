@@ -1,3 +1,4 @@
+import vm from 'node:vm';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -21,3 +22,16 @@ console.log('static contract tests passed');
 assert.match(rootFunction, /export function onRequestGet/);
 assert.match(rootFunction, /x-kingai-root/);
 assert.match(rootFunction, /id=\\\"catastrophe-radar\\\"/);
+
+const helperSource=app.match(/function scoreOrNaN\(value\) \{[\s\S]*?\n\}/)?.[0];
+assert.ok(helperSource, 'Missing risk score validation helper');
+const scoreOrNaN=vm.runInNewContext(helperSource+'; scoreOrNaN');
+assert.ok(Number.isNaN(scoreOrNaN(null)), 'Null is UNKNOWN, not zero severity');
+assert.ok(Number.isNaN(scoreOrNaN('')), 'Blank is UNKNOWN, not zero severity');
+assert.ok(Number.isNaN(scoreOrNaN(undefined)), 'Missing is UNKNOWN, not zero severity');
+assert.ok(Number.isNaN(scoreOrNaN(-2)), 'Negative score must be rejected');
+assert.ok(Number.isNaN(scoreOrNaN(101)), 'Out-of-range score must be rejected');
+assert.equal(scoreOrNaN(0), 0, 'Explicitly reported zero remains valid');
+assert.equal(scoreOrNaN(85), 85, 'Valid higher-severity score preserved');
+assert.ok(middleware.includes('const APP_JS = '+JSON.stringify(app)+';'), 'Public source and served Pages Functions app must be identical');
+console.log('Missing-data risk-score guard passed');
